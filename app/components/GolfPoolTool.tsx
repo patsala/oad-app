@@ -257,20 +257,20 @@ const GolfPoolTool = () => {
     },
   ];
 
-  const getTierColor = (tier) => {
+  const getTierColor = (tier: string) => {
     if (tier.includes("Elite")) return "from-yellow-500/20 to-yellow-600/20 border-yellow-500/50";
     if (tier === "Tier 2") return "from-blue-500/20 to-blue-600/20 border-blue-500/50";
     return "from-gray-500/20 to-gray-600/20 border-gray-500/50";
   };
 
-  const getRecommendationColor = (rec) => {
+  const getRecommendationColor = (rec: string) => {
     if (rec.includes("TOP PICK") || rec.includes("STRONG")) return "text-green-400";
     if (rec.includes("SAVE")) return "text-purple-400";
     if (rec.includes("AVOID")) return "text-red-400";
     return "text-yellow-400";
   };
 
-  const toggleComparison = (player) => {
+  const toggleComparison = (player: any) => {
     if (comparisonPlayers.find(p => p.name === player.name)) {
       setComparisonPlayers(comparisonPlayers.filter(p => p.name !== player.name));
     } else if (comparisonPlayers.length < 3) {
