@@ -86,7 +86,7 @@ const GolfPoolTool = () => {
   const [segmentStandings, setSegmentStandings] = useState<SegmentStanding[]>([]);
   const [allPicks, setAllPicks] = useState<Pick[]>([]);
 
-  // Curated shortlist for research (your original 13 players with Pebble-specific notes)
+  // Curated shortlist for research (your original 3 players with generic notes)
   const shortlistPlayers: Player[] = [
     {
       name: "Scottie Scheffler",
@@ -96,11 +96,11 @@ const GolfPoolTool = () => {
       top10Odds: "-200",
       dkSalary: "$14,000",
       fdSalary: "$15,600",
-      courseHistory: "T6 (2024), T9 (2023)",
+      courseHistory: "Consistently elite",
       recentForm: "Won Hero World Challenge, Strong putting recently",
       strengths: ["Elite ball-striker", "Short game improving", "Never misses cuts"],
-      concerns: ["Driver less important at Pebble", "High DFS salary"],
-      pebbleNotes: "Hasn't won here yet, but top-10 finishes show he can contend",
+      concerns: ["High DFS salary"],
+      pebbleNotes: "Elite player across all courses",
       recommendation: "SAVE FOR MAJOR",
       reasoning: "Too valuable for early events. Save for Masters ($30M effective)"
     },
@@ -112,11 +112,11 @@ const GolfPoolTool = () => {
       top10Odds: "+140",
       dkSalary: "$11,400",
       fdSalary: "$12,800",
-      courseHistory: "T14 (2024), T6 (2023)",
+      courseHistory: "Strong major performer",
       recentForm: "Consistent, Strong major performer",
-      strengths: ["Excellent iron player", "Calm under pressure", "Good Poa putter"],
-      concerns: ["Not the longest hitter", "Moderate recent results"],
-      pebbleNotes: "Course suits his game - accuracy over distance",
+      strengths: ["Excellent iron player", "Calm under pressure", "Good putter"],
+      concerns: ["Not the longest hitter"],
+      pebbleNotes: "Elite player - accuracy over distance",
       recommendation: "SAVE FOR MAJOR",
       reasoning: "Elite player needed for majors with 1.5x multiplier"
     },
@@ -128,15 +128,14 @@ const GolfPoolTool = () => {
       top10Odds: "+275",
       dkSalary: "$9,600",
       fdSalary: "$10,600",
-      courseHistory: "T5 (2024), 10+ straight top-20s",
+      courseHistory: "Consistent performer",
       recentForm: "On fire - Top-20 in last 10 straight events",
       strengths: ["Most accurate driver on tour", "Elite iron player", "Small course specialist"],
       concerns: ["Hasn't won recently", "Not a bomber"],
-      pebbleNotes: "PEBBLE SPECIALIST - T5 last year, excels on short accurate courses",
-      recommendation: "TOP PICK FOR PEBBLE",
-      reasoning: "Perfect course fit, hot form, great value. Top-20 streak is elite"
+      pebbleNotes: "Great value play - consistent top finishes",
+      recommendation: "STRONG VALUE",
+      reasoning: "Great course fit, hot form, excellent value"
     },
-    // Add more shortlist players as needed
   ];
 
   // Load data on mount
@@ -444,7 +443,7 @@ const GolfPoolTool = () => {
                       />
                     </div>
 
-                    <div className="flex gap-4 items-end">
+                    <div className="flex gap-4 items-start">
                       <div className="flex-1">
                         <label className="block text-sm text-slate-400 mb-2">
                           Select Player ({filteredPlayers.length} {searchTerm ? 'results' : 'shown'})
@@ -473,17 +472,19 @@ const GolfPoolTool = () => {
                         </div>
                       </div>
 
-                      <button
-                        onClick={handleSubmitPick}
-                        disabled={!selectedPickPlayer || isSubmitting}
-                        className={`px-8 py-3 rounded-lg font-bold transition-all ${
-                          !selectedPickPlayer || isSubmitting
-                            ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                            : 'bg-emerald-500 hover:bg-emerald-600 text-white glow'
-                        }`}
-                      >
-                        {isSubmitting ? 'Submitting...' : 'Lock In Pick'}
-                      </button>
+                      <div className="flex flex-col justify-end">
+                        <button
+                          onClick={handleSubmitPick}
+                          disabled={!selectedPickPlayer || isSubmitting}
+                          className={`px-8 py-3 rounded-lg font-bold transition-all whitespace-nowrap ${
+                            !selectedPickPlayer || isSubmitting
+                              ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                              : 'bg-emerald-500 hover:bg-emerald-600 text-white glow'
+                          }`}
+                        >
+                          {isSubmitting ? 'Submitting...' : 'Lock In Pick'}
+                        </button>
+                      </div>
                     </div>
 
                     {submitMessage && (
@@ -532,15 +533,12 @@ const GolfPoolTool = () => {
             </div>
           </div>
 
-          {/* Curated Shortlist Note */}
+          {/* Players Grid (Shortlist - keep for now as research tool) */}
           <div className="max-w-7xl mx-auto mb-4">
-            <div className="flex items-center gap-2 text-slate-400 text-sm">
-              <AlertCircle className="w-4 h-4" />
-              <span>Analysis below is from Pebble Beach week - Generic player analysis coming soon!</span>
-            </div>
+            <h3 className="text-2xl mb-2 text-slate-400">Top Tier Players (Reference)</h3>
+            <p className="text-sm text-slate-500 mb-4">Course-specific analysis coming soon - these are general recommendations</p>
           </div>
 
-          {/* Players Grid (Shortlist - keep for now as research tool) */}
           <div className="max-w-7xl mx-auto grid gap-6">
             {shortlistPlayers.map((player, idx) => {
               const dbPlayer = allPlayers.find(p => p.name === player.name);
