@@ -1,26 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Trophy, DollarSign, Target, Cloud, Wind, Droplets, ChevronDown, ChevronUp, Star, Clock, Calendar, Users, CheckCircle, XCircle, Search, Lock, AlertCircle } from 'lucide-react';
+import { Trophy, DollarSign, Target, Clock, Calendar, Users, CheckCircle, XCircle, Search, Lock, TrendingUp, AlertCircle, Award, Zap, Shield } from 'lucide-react';
 
 // Type definitions
-interface Player {
-  name: string;
-  tier: string;
-  winOdds: string;
-  top5Odds: string;
-  top10Odds: string;
-  dkSalary: string;
-  fdSalary: string;
-  courseHistory: string;
-  recentForm: string;
-  strengths: string[];
-  concerns: string[];
-  pebbleNotes: string;
-  recommendation: string;
-  reasoning: string;
-}
-
 interface DBPlayer {
   id: number;
   name: string;
@@ -64,10 +47,25 @@ interface SegmentStanding {
   best_finish: number | null;
 }
 
+interface PlayerRecommendation {
+  name: string;
+  dg_id: number;
+  tier: string;
+  owgr_rank: number;
+  datagolf_rank: number;
+  win_odds: number;
+  top_5_odds?: number;
+  top_10_odds?: number;
+  course_fit?: number;
+  is_used: boolean;
+  used_week?: number;
+  recommendation_score: number;
+  recommendation_tier: string;
+  reasoning: string;
+  strategic_note?: string;
+}
+
 const GolfPoolTool = () => {
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const [showComparison, setShowComparison] = useState(false);
-  const [comparisonPlayers, setComparisonPlayers] = useState<Player[]>([]);
   const [activeTab, setActiveTab] = useState('weekly');
   
   // Tournament and pick state
@@ -82,61 +80,14 @@ const GolfPoolTool = () => {
   const [loadingPlayers, setLoadingPlayers] = useState(true);
   const [loadingTournament, setLoadingTournament] = useState(true);
   
+  // Recommendations state
+  const [recommendations, setRecommendations] = useState<PlayerRecommendation[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(true);
+  const [nextMajor, setNextMajor] = useState<{ name: string; weeks_away: number } | null>(null);
+  
   // Segment standings
   const [segmentStandings, setSegmentStandings] = useState<SegmentStanding[]>([]);
   const [allPicks, setAllPicks] = useState<Pick[]>([]);
-
-  // Curated shortlist for research (your original 3 players with generic notes)
-  const shortlistPlayers: Player[] = [
-    {
-      name: "Scottie Scheffler",
-      tier: "Elite",
-      winOdds: "+300",
-      top5Odds: "+110",
-      top10Odds: "-200",
-      dkSalary: "$14,000",
-      fdSalary: "$15,600",
-      courseHistory: "Consistently elite",
-      recentForm: "Won Hero World Challenge, Strong putting recently",
-      strengths: ["Elite ball-striker", "Short game improving", "Never misses cuts"],
-      concerns: ["High DFS salary"],
-      pebbleNotes: "Elite player across all courses",
-      recommendation: "SAVE FOR MAJOR",
-      reasoning: "Too valuable for early events. Save for Masters ($30M effective)"
-    },
-    {
-      name: "Xander Schauffele",
-      tier: "Elite",
-      winOdds: "+1400",
-      top5Odds: "+350",
-      top10Odds: "+140",
-      dkSalary: "$11,400",
-      fdSalary: "$12,800",
-      courseHistory: "Strong major performer",
-      recentForm: "Consistent, Strong major performer",
-      strengths: ["Excellent iron player", "Calm under pressure", "Good putter"],
-      concerns: ["Not the longest hitter"],
-      pebbleNotes: "Elite player - accuracy over distance",
-      recommendation: "SAVE FOR MAJOR",
-      reasoning: "Elite player needed for majors with 1.5x multiplier"
-    },
-    {
-      name: "Russell Henley",
-      tier: "Tier 2",
-      winOdds: "+3500",
-      top5Odds: "+700",
-      top10Odds: "+275",
-      dkSalary: "$9,600",
-      fdSalary: "$10,600",
-      courseHistory: "Consistent performer",
-      recentForm: "On fire - Top-20 in last 10 straight events",
-      strengths: ["Most accurate driver on tour", "Elite iron player", "Small course specialist"],
-      concerns: ["Hasn't won recently", "Not a bomber"],
-      pebbleNotes: "Great value play - consistent top finishes",
-      recommendation: "STRONG VALUE",
-      reasoning: "Great course fit, hot form, excellent value"
-    },
-  ];
 
   // Load data on mount
   useEffect(() => {
@@ -144,6 +95,7 @@ const GolfPoolTool = () => {
     loadPlayers();
     loadPicks();
     loadSegmentStandings();
+    loadRecommendations();
   }, []);
 
   // Filter players based on search
@@ -166,7 +118,6 @@ const GolfPoolTool = () => {
       if (data.tournament) {
         setCurrentTournament(data.tournament);
         
-        // Check if we have a pick for this tournament
         const picksResponse = await fetch('/api/picks');
         const picksData = await picksResponse.json();
         const tournamentPick = picksData.picks.find((p: Pick) => p.tournament_id === data.tournament.id);
@@ -217,6 +168,25 @@ const GolfPoolTool = () => {
     }
   };
 
+  const loadRecommendations = async () => {
+    try {
+      setLoadingRecommendations(true);
+      const response = await fetch('/api/weekly-recommendations');
+      
+      if (response.ok) {
+        const data = await response.json();
+        setRecommendations(data.top_picks || []);
+        setNextMajor(data.next_major);
+      } else {
+        console.error('Failed to load recommendations');
+      }
+      setLoadingRecommendations(false);
+    } catch (error) {
+      console.error('Failed to load recommendations:', error);
+      setLoadingRecommendations(false);
+    }
+  };
+
   const handleSubmitPick = async () => {
     if (!selectedPickPlayer) {
       setSubmitMessage({ type: 'error', text: 'Please select a player' });
@@ -252,8 +222,8 @@ const GolfPoolTool = () => {
         setSelectedPickPlayer('');
         setSearchTerm('');
         
-        // Reload players to show updated usage
         loadPlayers();
+        loadRecommendations(); // Refresh to update used status
       } else {
         setSubmitMessage({ 
           type: 'error', 
@@ -275,18 +245,22 @@ const GolfPoolTool = () => {
   };
 
   const getRecommendationColor = (rec: string) => {
-    if (rec.includes("TOP PICK") || rec.includes("STRONG")) return "text-green-400";
+    if (rec.includes("TOP PICK")) return "text-green-400";
+    if (rec.includes("STRONG")) return "text-emerald-400";
     if (rec.includes("SAVE")) return "text-purple-400";
-    if (rec.includes("AVOID")) return "text-red-400";
-    return "text-yellow-400";
+    if (rec.includes("PLAYABLE")) return "text-yellow-400";
+    return "text-red-400";
   };
 
-  const toggleComparison = (player: Player) => {
-    if (comparisonPlayers.find(p => p.name === player.name)) {
-      setComparisonPlayers(comparisonPlayers.filter(p => p.name !== player.name));
-    } else if (comparisonPlayers.length < 3) {
-      setComparisonPlayers([...comparisonPlayers, player]);
-    }
+  const getRecommendationIcon = (rec: string) => {
+    if (rec.includes("TOP PICK")) return Award;
+    if (rec.includes("STRONG")) return Zap;
+    if (rec.includes("SAVE")) return Shield;
+    return Target;
+  };
+
+  const formatOdds = (odds: number) => {
+    return odds > 0 ? `+${odds}` : `${odds}`;
   };
 
   if (loadingTournament) {
@@ -367,8 +341,8 @@ const GolfPoolTool = () => {
         <div className="glass rounded-xl p-2 flex gap-2">
           {[
             { id: 'weekly', label: 'This Week', icon: Clock },
-            { id: 'roster', label: 'Roster Management', icon: Users },
-            { id: 'schedule', label: 'Full Schedule', icon: Calendar },
+            { id: 'roster', label: 'Roster', icon: Users },
+            { id: 'schedule', label: 'Schedule', icon: Calendar },
             { id: 'stats', label: 'My Picks', icon: Trophy }
           ].map(tab => {
             const Icon = tab.icon;
@@ -390,13 +364,12 @@ const GolfPoolTool = () => {
         </div>
       </div>
 
-      {/* WEEKLY TAB - This Week's Pick */}
+      {/* WEEKLY TAB */}
       {activeTab === 'weekly' && currentTournament && (
         <>
           {/* Current Pick Status / Submission Form */}
           <div className="max-w-7xl mx-auto mb-8 glass rounded-2xl p-6 glow animate-slide-in" style={{animationDelay: '0.1s'}}>
             {currentPick ? (
-              // Show current pick
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm text-slate-400 mb-1">
@@ -421,7 +394,6 @@ const GolfPoolTool = () => {
                 </div>
               </div>
             ) : (
-              // Show pick form
               <div>
                 <h3 className="text-2xl mb-4 text-emerald-400">
                   MAKE YOUR PICK - WEEK {currentTournament.week_number}
@@ -431,7 +403,6 @@ const GolfPoolTool = () => {
                   <div className="text-center py-8 text-slate-400">Loading players...</div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Search input */}
                     <div className="relative">
                       <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
@@ -467,7 +438,7 @@ const GolfPoolTool = () => {
                           ))}
                         </select>
                         <div className="text-xs text-slate-500 mt-1">
-                          {allPlayers.filter(p => p.used_in_tournament_id !== null).length} players already used •{' '}
+                          {allPlayers.filter(p => p.used_in_tournament_id !== null).length} used •{' '}
                           {allPlayers.filter(p => p.used_in_tournament_id === null).length} available
                         </div>
                       </div>
@@ -531,65 +502,123 @@ const GolfPoolTool = () => {
                 </div>
               </div>
             </div>
+
+            {nextMajor && (
+              <div className="bg-purple-950/30 border border-purple-500/30 rounded-xl p-3 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-purple-400" />
+                <div className="text-sm">
+                  <span className="text-purple-400 font-semibold">Next Major:</span>{' '}
+                  <span className="text-slate-300">{nextMajor.name}</span>{' '}
+                  <span className="text-slate-500">({nextMajor.weeks_away} weeks away)</span>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Players Grid (Shortlist - keep for now as research tool) */}
-          <div className="max-w-7xl mx-auto mb-4">
-            <h3 className="text-2xl mb-2 text-slate-400">Top Tier Players (Reference)</h3>
-            <p className="text-sm text-slate-500 mb-4">Course-specific analysis coming soon - these are general recommendations</p>
+          {/* AI Recommendations */}
+          <div className="max-w-7xl mx-auto mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-3xl text-emerald-400">INTELLIGENT PICKS</h3>
+                <p className="text-sm text-slate-500">
+                  Ranked by expected value • Live odds & course fit • Strategic considerations
+                </p>
+              </div>
+              <button
+                onClick={loadRecommendations}
+                disabled={loadingRecommendations}
+                className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-lg text-sm transition-all"
+              >
+                {loadingRecommendations ? 'Updating...' : 'Refresh Data'}
+              </button>
+            </div>
           </div>
 
-          <div className="max-w-7xl mx-auto grid gap-6">
-            {shortlistPlayers.map((player, idx) => {
-              const dbPlayer = allPlayers.find(p => p.name === player.name);
-              const isUsed = dbPlayer?.used_in_tournament_id !== null;
-              
-              return (
-                <div
-                  key={idx}
-                  className={`glass rounded-2xl p-6 transition-all bg-gradient-to-br ${getTierColor(player.tier)} border ${
-                    isUsed ? 'opacity-50' : 'cursor-pointer hover:scale-[1.01]'
-                  }`}
-                  style={{animationDelay: `${0.2 + idx * 0.05}s`}}
-                  onClick={() => !isUsed && setSelectedPlayer(selectedPlayer?.name === player.name ? null : player)}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-2xl font-bold">{player.name}</h3>
-                        <span className="px-3 py-1 bg-slate-800/60 rounded-full text-xs font-semibold">
-                          {player.tier}
-                        </span>
-                        {isUsed && (
-                          <span className="px-3 py-1 bg-red-500/30 rounded-full text-xs font-semibold flex items-center gap-1">
-                            <Lock className="w-3 h-3" />
-                            Used Week {dbPlayer?.used_in_week}
+          {loadingRecommendations ? (
+            <div className="max-w-7xl mx-auto glass rounded-2xl p-12 text-center">
+              <div className="text-slate-400">Loading recommendations...</div>
+            </div>
+          ) : recommendations.length === 0 ? (
+            <div className="max-w-7xl mx-auto glass rounded-2xl p-12 text-center">
+              <AlertCircle className="w-16 h-16 mx-auto mb-4 text-slate-500" />
+              <div className="text-slate-400">No recommendations available. Check back closer to tournament start.</div>
+            </div>
+          ) : (
+            <div className="max-w-7xl mx-auto grid gap-4">
+              {recommendations.map((rec, idx) => {
+                const Icon = getRecommendationIcon(rec.recommendation_tier);
+                
+                return (
+                  <div
+                    key={rec.dg_id}
+                    className={`glass rounded-xl p-5 transition-all hover:scale-[1.01] bg-gradient-to-br ${getTierColor(rec.tier)} border ${
+                      rec.is_used ? 'opacity-50' : ''
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="text-xl font-bold text-slate-400">#{idx + 1}</div>
+                          <h4 className="text-xl font-bold">{rec.name}</h4>
+                          <span className="px-2 py-1 bg-slate-800/60 rounded-full text-xs font-semibold">
+                            {rec.tier}
                           </span>
+                          {rec.is_used && (
+                            <span className="px-2 py-1 bg-red-500/30 rounded-full text-xs font-semibold flex items-center gap-1">
+                              <Lock className="w-3 h-3" />
+                              Used W{rec.used_week}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          <div>
+                            <div className="text-xs text-slate-500">Win Odds</div>
+                            <div className="font-bold text-emerald-400">{formatOdds(rec.win_odds)}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-500">Top 5 Odds</div>
+                            <div className="font-semibold">{rec.top_5_odds ? formatOdds(rec.top_5_odds) : 'N/A'}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-500">OWGR</div>
+                            <div className="font-semibold">#{rec.owgr_rank}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-500">Course Fit</div>
+                            <div className="font-semibold">
+                              {rec.course_fit ? `${(rec.course_fit * 100).toFixed(0)}%` : 'N/A'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 text-sm text-slate-400">
+                          {rec.reasoning}
+                        </div>
+
+                        {rec.strategic_note && (
+                          <div className="mt-2 text-xs text-yellow-400 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {rec.strategic_note}
+                          </div>
                         )}
                       </div>
-                      
-                      <div className="flex items-center gap-6 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Trophy className="w-4 h-4 text-yellow-400" />
-                          <span className="text-slate-400">Win:</span>
-                          <span className="font-bold text-emerald-400">{player.winOdds}</span>
+
+                      <div className="text-right ml-4">
+                        <div className={`flex items-center gap-2 text-lg font-bold mb-1 ${getRecommendationColor(rec.recommendation_tier)}`}>
+                          <Icon className="w-5 h-5" />
+                          <span>{rec.recommendation_tier}</span>
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          EV: ${(rec.recommendation_score / 1000).toFixed(1)}k
                         </div>
                       </div>
                     </div>
-
-                    <div className="text-right">
-                      <div className={`text-xl font-bold mb-1 ${getRecommendationColor(player.recommendation)}`}>
-                        {player.recommendation}
-                      </div>
-                      <div className="text-xs text-slate-400 max-w-xs">
-                        {player.reasoning}
-                      </div>
-                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </>
       )}
 
@@ -634,12 +663,12 @@ const GolfPoolTool = () => {
         </div>
       )}
 
-      {/* OTHER TABS - Placeholders */}
+      {/* OTHER TABS */}
       {(activeTab === 'roster' || activeTab === 'schedule') && (
         <div className="max-w-7xl mx-auto">
           <div className="glass rounded-2xl p-6">
             <h2 className="text-3xl mb-2 text-emerald-400 capitalize">{activeTab}</h2>
-            <p className="text-slate-400 mb-6">This feature is coming soon!</p>
+            <p className="text-slate-400 mb-6">Coming soon!</p>
             
             <div className="bg-slate-800/50 rounded-xl p-8 text-center">
               <p className="text-slate-400">Additional features will be built out soon.</p>
@@ -650,10 +679,10 @@ const GolfPoolTool = () => {
 
       {/* Footer */}
       <div className="max-w-7xl mx-auto mt-8 text-center text-slate-500 text-sm">
-        <p>Data powered by DataGolf • {allPlayers.length} players in database</p>
+        <p>Live data powered by DataGolf • {allPlayers.length} players in database</p>
         {currentTournament && (
           <p className="mt-1">
-            Current: Week {currentTournament.week_number} - {currentTournament.event_name}
+            Week {currentTournament.week_number} - {currentTournament.event_name}
           </p>
         )}
       </div>
