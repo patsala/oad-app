@@ -26,6 +26,7 @@ interface Tournament {
   event_type: string;
   week_number: number;
   is_completed: boolean;
+  winner?: string;
 }
 
 interface Pick {
@@ -71,10 +72,196 @@ interface PlayerRecommendation {
   narrative?: string;
 }
 
+// Helper function for dollar formatting
 const formatDollar = (amount: number) => {
   return '$' + Math.round(amount).toLocaleString();
 };
 
+// Tournament Field Component
+const TournamentFieldTab = () => {
+  const [field, setField] = useState<any[]>([]);
+  const [eventName, setEventName] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadField();
+  }, []);
+
+  const loadField = async () => {
+    try {
+      const response = await fetch('/api/tournament-field');
+      if (response.ok) {
+        const data = await response.json();
+        setField(data.field || []);
+        setEventName(data.event_name || '');
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to load field:', error);
+      setLoading(false);
+    }
+  };
+
+  const formatOdds = (odds: number | null) => {
+    if (!odds) return 'N/A';
+    return odds > 0 ? `+${odds}` : `${odds}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto glass rounded-2xl p-12 text-center">
+        <div className="text-slate-400">Loading tournament field...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto">
+      <div className="glass rounded-2xl p-6">
+        <h2 className="text-3xl mb-2 text-emerald-400">TOURNAMENT FIELD</h2>
+        <p className="text-slate-400 mb-6">{eventName}</p>
+        
+        <div className="space-y-2">
+          {field.map((player, idx) => (
+            <div 
+              key={player.dg_id}
+              className="bg-slate-800/50 rounded-lg p-4 flex items-center justify-between hover:bg-slate-800/70 transition-all"
+            >
+              <div className="flex items-center gap-4">
+                <div className="text-slate-500 font-mono w-8">{idx + 1}</div>
+                <div>
+                  <div className="font-bold">{player.name}</div>
+                  <div className="text-sm text-slate-500">{player.country}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-8">
+                <div className="text-right">
+                  <div className="text-xs text-slate-500">OWGR</div>
+                  <div className="font-semibold">#{player.owgr || 'N/A'}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-slate-500">Win Odds</div>
+                  <div className="font-semibold text-emerald-400">{formatOdds(player.win_odds)}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Schedule Component
+const ScheduleTab = () => {
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadSchedule();
+  }, []);
+
+  const loadSchedule = async () => {
+    try {
+      const response = await fetch('/api/full-schedule');
+      if (response.ok) {
+        const data = await response.json();
+        setTournaments(data.tournaments || []);
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to load schedule:', error);
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto glass rounded-2xl p-12 text-center">
+        <div className="text-slate-400">Loading schedule...</div>
+      </div>
+    );
+  }
+
+  const getSegmentColor = (segment: string) => {
+    const colors: any = {
+      'Q1': 'bg-blue-500/20 border-blue-500/50',
+      'Q2': 'bg-green-500/20 border-green-500/50',
+      'Q3': 'bg-yellow-500/20 border-yellow-500/50',
+      'Q4': 'bg-purple-500/20 border-purple-500/50'
+    };
+    return colors[segment] || 'bg-slate-500/20 border-slate-500/50';
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto">
+      <div className="glass rounded-2xl p-6">
+        <h2 className="text-3xl mb-6 text-emerald-400">FULL SEASON SCHEDULE</h2>
+        
+        <div className="grid gap-4">
+          {tournaments.map((tournament) => (
+            <div 
+              key={tournament.id}
+              className={`rounded-lg p-4 border ${
+                tournament.is_completed ? 'bg-slate-800/30' : 'bg-slate-800/50'
+              } ${getSegmentColor(tournament.segment)}`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-sm font-mono text-slate-400">
+                      Week {tournament.week_number}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getSegmentColor(tournament.segment)}`}>
+                      {tournament.segment}
+                    </span>
+                    {tournament.event_type === 'Major' && (
+                      <span className="px-2 py-0.5 bg-yellow-500/30 border border-yellow-500/50 rounded-full text-xs font-semibold text-yellow-300">
+                        MAJOR
+                      </span>
+                    )}
+                    {tournament.is_completed && (
+                      <span className="px-2 py-0.5 bg-green-500/30 border border-green-500/50 rounded-full text-xs font-semibold text-green-300">
+                        ✓ COMPLETE
+                      </span>
+                    )}
+                  </div>
+                  
+                  <h3 className="text-xl font-bold mb-1">{tournament.event_name}</h3>
+                  <p className="text-sm text-slate-400">
+                    {tournament.course_name} • {tournament.city}, {tournament.country}
+                  </p>
+                  
+                  {tournament.is_completed && tournament.winner && (
+                    <p className="text-sm text-emerald-400 mt-2">
+                      Winner: {tournament.winner}
+                    </p>
+                  )}
+                </div>
+                
+                <div className="text-right">
+                  <div className="text-sm text-slate-500">
+                    {new Date(tournament.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </div>
+                  <div className="text-lg font-bold text-emerald-400">
+                    ${(tournament.purse / 1000000).toFixed(1)}M
+                  </div>
+                  {tournament.multiplier > 1 && (
+                    <div className="text-xs text-yellow-400">
+                      {tournament.multiplier}x multiplier
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Main Component
 const GolfPoolTool = () => {
   const [activeTab, setActiveTab] = useState('weekly');
   
@@ -199,43 +386,51 @@ const GolfPoolTool = () => {
   };
 
   const generateNarrative = async (player: PlayerRecommendation) => {
-  setLoadingNarrativeFor(player.dg_id);
-  
-  try {
-    const response = await fetch('/api/generate-narratives', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        players: [player],
-        tournament: currentTournament?.event_name || 'this tournament',
-        context: {
-          week_number: currentTournament?.week_number,
-          next_major: nextMajor,
-          used_players: allPicks
-        }
-      })
-    });
+    setLoadingNarrativeFor(player.dg_id);
     
-    if (response.ok) {
-      const data = await response.json();
-      const narrative = data.narratives[player.dg_id];
-      const tier = data.tiers[player.dg_id];
+    try {
+      // Calculate actual course fit comparison
+      const courseFitComparison = player.course_fit && player.win_probability
+        ? ((player.course_fit / player.win_probability - 1) * 100).toFixed(0)
+        : null;
       
-      // Update the player's narrative AND tier in state
-      setRecommendations(prev => prev.map(p => 
-        p.dg_id === player.dg_id ? { 
-          ...p, 
-          narrative, 
-          recommendation_tier: tier || p.recommendation_tier 
-        } : p
-      ));
+      const response = await fetch('/api/generate-narratives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          players: [{
+            ...player,
+            course_fit_comparison: courseFitComparison
+          }],
+          tournament: currentTournament?.event_name || 'this tournament',
+          context: {
+            week_number: currentTournament?.week_number,
+            next_major: nextMajor,
+            used_players: allPicks
+          }
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const narrative = data.narratives[player.dg_id];
+        const tier = data.tiers[player.dg_id];
+        
+        // Update the player's narrative AND tier in state
+        setRecommendations(prev => prev.map(p => 
+          p.dg_id === player.dg_id ? { 
+            ...p, 
+            narrative, 
+            recommendation_tier: tier || p.recommendation_tier 
+          } : p
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to generate narrative:', error);
+    } finally {
+      setLoadingNarrativeFor(null);
     }
-  } catch (error) {
-    console.error('Failed to generate narrative:', error);
-  } finally {
-    setLoadingNarrativeFor(null);
-  }
-};
+  };
 
   const handleSubmitPick = async () => {
     if (!selectedPickPlayer) {
@@ -373,35 +568,35 @@ const GolfPoolTool = () => {
       </div>
 
       {/* Segment Standings Bar */}
-{segmentStandings.length > 0 && (
-  <div className="max-w-7xl mx-auto mb-6 space-y-4">
-    {/* Season Total */}
-    <div className="glass rounded-xl p-4 text-center">
-      <div className="text-sm text-slate-400">Season Total</div>
-      <div className="text-4xl font-bold text-emerald-400">
-        {formatDollar(segmentStandings[0]?.season_total_earnings || 0)}
-      </div>
-      <div className="text-xs text-slate-500 mt-1">
-        {segmentStandings.reduce((sum, s) => sum + s.events_completed, 0)}/28 events
-      </div>
-    </div>
-
-    {/* Segment Breakdown */}
-    <div className="glass rounded-xl p-4 flex gap-4">
-      {segmentStandings.map((standing) => (
-        <div key={standing.segment} className="flex-1 text-center">
-          <div className="text-xs text-slate-400">{standing.segment}</div>
-          <div className="text-2xl font-bold text-emerald-400">
-            {formatDollar(standing.total_earnings || 0)}
+      {segmentStandings.length > 0 && (
+        <div className="max-w-7xl mx-auto mb-6 space-y-4">
+          {/* Season Total */}
+          <div className="glass rounded-xl p-4 text-center">
+            <div className="text-sm text-slate-400">Season Total</div>
+            <div className="text-4xl font-bold text-emerald-400">
+              {formatDollar(segmentStandings[0]?.season_total_earnings || 0)}
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              {segmentStandings.reduce((sum, s) => sum + s.events_completed, 0)}/28 events
+            </div>
           </div>
-          <div className="text-xs text-slate-500">
-            {standing.events_completed}/7 events
+
+          {/* Segment Breakdown */}
+          <div className="glass rounded-xl p-4 flex gap-4">
+            {segmentStandings.map((standing) => (
+              <div key={standing.segment} className="flex-1 text-center">
+                <div className="text-xs text-slate-400">{standing.segment}</div>
+                <div className="text-2xl font-bold text-emerald-400">
+                  {formatDollar(standing.total_earnings || 0)}
+                </div>
+                <div className="text-xs text-slate-500">
+                  {standing.events_completed}/7 events
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      ))}
-    </div>
-  </div>
-)}
+      )}
 
       {/* Tab Navigation */}
       <div className="max-w-7xl mx-auto mb-6 animate-slide-in" style={{animationDelay: '0.05s'}}>
@@ -729,15 +924,15 @@ const GolfPoolTool = () => {
                       </div>
 
                       {/* Recommendation Badge - only show if narrative generated */}
-<div className="text-right ml-4">
-  {rec.narrative && (
-    <div className={`flex items-center gap-2 text-lg font-bold mb-1 ${getRecommendationColor(rec.recommendation_tier)}`}>
-      <Icon className="w-5 h-5" />
-      <span className="whitespace-nowrap">{rec.recommendation_tier}</span>
-    </div>
-  )}
+                      <div className="text-right ml-4">
+                        {rec.narrative && (
+                          <div className={`flex items-center gap-2 text-lg font-bold mb-1 ${getRecommendationColor(rec.recommendation_tier)}`}>
+                            <Icon className="w-5 h-5" />
+                            <span className="whitespace-nowrap">{rec.recommendation_tier}</span>
+                          </div>
+                        )}
                         <div className="text-xs text-slate-500">
-                          EV: ${(rec.recommendation_score / 1000).toFixed(1)}k
+                          EV: {formatDollar(rec.recommendation_score)}
                         </div>
                       </div>
                     </div>
@@ -756,6 +951,12 @@ const GolfPoolTool = () => {
           )}
         </>
       )}
+
+      {/* TOURNAMENT FIELD TAB */}
+      {activeTab === 'roster' && <TournamentFieldTab />}
+
+      {/* SCHEDULE TAB */}
+      {activeTab === 'schedule' && <ScheduleTab />}
 
       {/* MY PICKS TAB */}
       {activeTab === 'stats' && (
@@ -798,23 +999,6 @@ const GolfPoolTool = () => {
         </div>
       )}
 
-      {/* TOURNAMENT FIELD TAB */}
-{activeTab === 'roster' && <TournamentFieldTab />}
-
-{/* SCHEDULE TAB */}
-{activeTab === 'schedule' && <ScheduleTab />}
-        <div className="max-w-7xl mx-auto">
-          <div className="glass rounded-2xl p-6">
-            <h2 className="text-3xl mb-2 text-emerald-400 capitalize">{activeTab}</h2>
-            <p className="text-slate-400 mb-6">Coming soon!</p>
-            
-            <div className="bg-slate-800/50 rounded-xl p-8 text-center">
-              <p className="text-slate-400">Additional features will be built out soon.</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Footer */}
       <div className="max-w-7xl mx-auto mt-8 text-center text-slate-500 text-sm">
         <p>Live data powered by DataGolf • AI analysis by Claude</p>
@@ -823,190 +1007,6 @@ const GolfPoolTool = () => {
             Week {currentTournament.week_number} - {currentTournament.event_name}
           </p>
         )}
-      </div>
-    </div>
-  );
-};
-
-// Tournament Field Component
-const TournamentFieldTab = () => {
-  const [field, setField] = useState<any[]>([]);
-  const [eventName, setEventName] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadField();
-  }, []);
-
-  const loadField = async () => {
-    try {
-      const response = await fetch('/api/tournament-field');
-      if (response.ok) {
-        const data = await response.json();
-        setField(data.field || []);
-        setEventName(data.event_name || '');
-      }
-      setLoading(false);
-    } catch (error) {
-      console.error('Failed to load field:', error);
-      setLoading(false);
-    }
-  };
-
-  const formatOdds = (odds: number | null) => {
-    if (!odds) return 'N/A';
-    return odds > 0 ? `+${odds}` : `${odds}`;
-  };
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto glass rounded-2xl p-12 text-center">
-        <div className="text-slate-400">Loading tournament field...</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-7xl mx-auto">
-      <div className="glass rounded-2xl p-6">
-        <h2 className="text-3xl mb-2 text-emerald-400">TOURNAMENT FIELD</h2>
-        <p className="text-slate-400 mb-6">{eventName}</p>
-        
-        <div className="space-y-2">
-          {field.map((player, idx) => (
-            <div 
-              key={player.dg_id}
-              className="bg-slate-800/50 rounded-lg p-4 flex items-center justify-between hover:bg-slate-800/70 transition-all"
-            >
-              <div className="flex items-center gap-4">
-                <div className="text-slate-500 font-mono w-8">{idx + 1}</div>
-                <div>
-                  <div className="font-bold">{player.name}</div>
-                  <div className="text-sm text-slate-500">{player.country}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-8">
-                <div className="text-right">
-                  <div className="text-xs text-slate-500">OWGR</div>
-                  <div className="font-semibold">#{player.owgr || 'N/A'}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-slate-500">Win Odds</div>
-                  <div className="font-semibold text-emerald-400">{formatOdds(player.win_odds)}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Schedule Component
-const ScheduleTab = () => {
-  const [tournaments, setTournaments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadSchedule();
-  }, []);
-
-  const loadSchedule = async () => {
-    try {
-      const response = await fetch('/api/full-schedule');
-      if (response.ok) {
-        const data = await response.json();
-        setTournaments(data.tournaments || []);
-      }
-      setLoading(false);
-    } catch (error) {
-      console.error('Failed to load schedule:', error);
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto glass rounded-2xl p-12 text-center">
-        <div className="text-slate-400">Loading schedule...</div>
-      </div>
-    );
-  }
-
-  const getSegmentColor = (segment: string) => {
-    const colors: any = {
-      'Q1': 'bg-blue-500/20 border-blue-500/50',
-      'Q2': 'bg-green-500/20 border-green-500/50',
-      'Q3': 'bg-yellow-500/20 border-yellow-500/50',
-      'Q4': 'bg-purple-500/20 border-purple-500/50'
-    };
-    return colors[segment] || 'bg-slate-500/20 border-slate-500/50';
-  };
-
-  return (
-    <div className="max-w-7xl mx-auto">
-      <div className="glass rounded-2xl p-6">
-        <h2 className="text-3xl mb-6 text-emerald-400">FULL SEASON SCHEDULE</h2>
-        
-        <div className="grid gap-4">
-          {tournaments.map((tournament) => (
-            <div 
-              key={tournament.id}
-              className={`rounded-lg p-4 border ${
-                tournament.is_completed ? 'bg-slate-800/30' : 'bg-slate-800/50'
-              } ${getSegmentColor(tournament.segment)}`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="text-sm font-mono text-slate-400">
-                      Week {tournament.week_number}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getSegmentColor(tournament.segment)}`}>
-                      {tournament.segment}
-                    </span>
-                    {tournament.event_type === 'Major' && (
-                      <span className="px-2 py-0.5 bg-yellow-500/30 border border-yellow-500/50 rounded-full text-xs font-semibold text-yellow-300">
-                        MAJOR
-                      </span>
-                    )}
-                    {tournament.is_completed && (
-                      <span className="px-2 py-0.5 bg-green-500/30 border border-green-500/50 rounded-full text-xs font-semibold text-green-300">
-                        ✓ COMPLETE
-                      </span>
-                    )}
-                  </div>
-                  
-                  <h3 className="text-xl font-bold mb-1">{tournament.event_name}</h3>
-                  <p className="text-sm text-slate-400">
-                    {tournament.course_name} • {tournament.city}, {tournament.country}
-                  </p>
-                  
-                  {tournament.is_completed && tournament.winner && (
-                    <p className="text-sm text-emerald-400 mt-2">
-                      Winner: {tournament.winner}
-                    </p>
-                  )}
-                </div>
-                
-                <div className="text-right">
-                  <div className="text-sm text-slate-500">
-                    {new Date(tournament.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </div>
-                  <div className="text-lg font-bold text-emerald-400">
-                    ${(tournament.purse / 1000000).toFixed(1)}M
-                  </div>
-                  {tournament.multiplier > 1 && (
-                    <div className="text-xs text-yellow-400">
-                      {tournament.multiplier}x multiplier
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
