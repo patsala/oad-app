@@ -89,6 +89,7 @@ const GolfPoolTool = () => {
   const [recommendations, setRecommendations] = useState<PlayerRecommendation[]>([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(true);
   const [nextMajor, setNextMajor] = useState<{ name: string; weeks_away: number } | null>(null);
+  const [loadingNarrativeFor, setLoadingNarrativeFor] = useState<number | null>(null);
   
   // Segment standings
   const [segmentStandings, setSegmentStandings] = useState<SegmentStanding[]>([]);
@@ -174,43 +175,13 @@ const GolfPoolTool = () => {
   };
 
   const loadRecommendations = async () => {
-  try {
-    setLoadingRecommendations(true);
-    const response = await fetch('/api/weekly-recommendations');
-    
-    if (response.ok) {
-      const data = await response.json();
-      const picks = data.top_picks || [];
-      const tournamentName = data.tournament?.name || 'this tournament';
+    try {
+      setLoadingRecommendations(true);
+      const response = await fetch('/api/weekly-recommendations');
       
-      // Generate narratives for all players
-      if (picks.length > 0) {
-        const narrativeResponse = await fetch('/api/generate-narratives', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            players: picks,
-            tournament: tournamentName  // Use tournament from recommendations API
-          })
-        });
-          
-          if (narrativeResponse.ok) {
-            const narrativeData = await narrativeResponse.json();
-            
-            // Merge narratives into picks
-            const picksWithNarratives = picks.map((pick: PlayerRecommendation) => ({
-              ...pick,
-              narrative: narrativeData.narratives[pick.dg_id] || 'Analysis pending...'
-            }));
-            
-            setRecommendations(picksWithNarratives);
-          } else {
-            setRecommendations(picks);
-          }
-        } else {
-          setRecommendations(picks);
-        }
-        
+      if (response.ok) {
+        const data = await response.json();
+        setRecommendations(data.top_picks || []);
         setNextMajor(data.next_major);
       } else {
         console.error('Failed to load recommendations');
@@ -221,6 +192,45 @@ const GolfPoolTool = () => {
       setLoadingRecommendations(false);
     }
   };
+
+  const generateNarrative = async (player: PlayerRecommendation) => {
+  setLoadingNarrativeFor(player.dg_id);
+  
+  try {
+    const response = await fetch('/api/generate-narratives', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        players: [player],
+        tournament: currentTournament?.event_name || 'this tournament',
+        context: {
+          week_number: currentTournament?.week_number,
+          next_major: nextMajor,
+          used_players: allPicks
+        }
+      })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const narrative = data.narratives[player.dg_id];
+      const tier = data.tiers[player.dg_id];
+      
+      // Update the player's narrative AND tier in state
+      setRecommendations(prev => prev.map(p => 
+        p.dg_id === player.dg_id ? { 
+          ...p, 
+          narrative, 
+          recommendation_tier: tier || p.recommendation_tier 
+        } : p
+      ));
+    }
+  } catch (error) {
+    console.error('Failed to generate narrative:', error);
+  } finally {
+    setLoadingNarrativeFor(null);
+  }
+};
 
   const handleSubmitPick = async () => {
     if (!selectedPickPlayer) {
@@ -258,7 +268,7 @@ const GolfPoolTool = () => {
         setSearchTerm('');
         
         loadPlayers();
-        loadRecommendations(); // Refresh to update used status
+        loadRecommendations();
       } else {
         setSubmitMessage({ 
           type: 'error', 
@@ -283,10 +293,11 @@ const GolfPoolTool = () => {
     if (rec.includes("TOP PICK")) return "text-green-400";
     if (rec.includes("STRONG")) return "text-emerald-400";
     if (rec.includes("SAVE")) return "text-purple-400";
+    if (rec.includes("VALUE")) return "text-cyan-400";
     if (rec.includes("PLAYABLE")) return "text-yellow-400";
     if (rec.includes("CONSIDER")) return "text-cyan-400";
     if (rec.includes("LONGSHOT")) return "text-orange-400";
-    return "text-red-400";
+    return "text-slate-400";
   };
 
   const getRecommendationIcon = (rec: string) => {
@@ -552,13 +563,13 @@ const GolfPoolTool = () => {
             )}
           </div>
 
-          {/* AI Recommendations */}
+          {/* Recommendations */}
           <div className="max-w-7xl mx-auto mb-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-3xl text-emerald-400">INTELLIGENT PICKS</h3>
+                <h3 className="text-3xl text-emerald-400">TOP PICKS BY EXPECTED VALUE</h3>
                 <p className="text-sm text-slate-500">
-                  AI-powered analysis • Live odds & probabilities • Strategic recommendations
+                  Live odds & probabilities • DataGolf analysis • Click to generate AI insights
                 </p>
               </div>
               <button
@@ -583,173 +594,143 @@ const GolfPoolTool = () => {
           ) : (
             <div className="max-w-7xl mx-auto grid gap-4">
               {recommendations.map((rec, idx) => {
-  const Icon = getRecommendationIcon(rec.recommendation_tier);
-  const [loadingNarrative, setLoadingNarrative] = useState(false);
-  
-  const generateNarrative = async (player: PlayerRecommendation) => {
-    setLoadingNarrative(true);
-    
-    try {
-      const response = await fetch('/api/generate-narratives', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          players: [player],
-          tournament: currentTournament?.event_name || 'this tournament'
-        })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const narrative = data.narratives[player.dg_id];
-        
-        // Update the specific player's narrative in state
-        setRecommendations(prev => prev.map(p => 
-          p.dg_id === player.dg_id ? { ...p, narrative } : p
-        ));
-      }
-    } catch (error) {
-      console.error('Failed to generate narrative:', error);
-    } finally {
-      setLoadingNarrative(false);
-    }
-  };
-  
-  return (
-    <div
-      key={rec.dg_id}
-      className={`glass rounded-xl p-5 transition-all hover:scale-[1.01] bg-gradient-to-br ${getTierColor(rec.tier)} border ${
-        rec.is_used ? 'opacity-50' : ''
-      }`}
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="text-xl font-bold text-slate-400">#{idx + 1}</div>
-            <h4 className="text-xl font-bold">{rec.name}</h4>
-            <span className="px-2 py-1 bg-slate-800/60 rounded-full text-xs font-semibold">
-              {rec.tier}
-            </span>
-            {rec.is_used && (
-              <span className="px-2 py-1 bg-red-500/30 rounded-full text-xs font-semibold flex items-center gap-1">
-                <Lock className="w-3 h-3" />
-                Used W{rec.used_week}
-              </span>
-            )}
-          </div>
+                const Icon = getRecommendationIcon(rec.recommendation_tier);
+                
+                return (
+                  <div
+                    key={rec.dg_id}
+                    className={`glass rounded-xl p-5 transition-all hover:scale-[1.01] bg-gradient-to-br ${getTierColor(rec.tier)} border ${
+                      rec.is_used ? 'opacity-50' : ''
+                    }`}
+                  >
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="text-xl font-bold text-slate-400">#{idx + 1}</div>
+                          <h4 className="text-xl font-bold">{rec.name}</h4>
+                          <span className="px-2 py-1 bg-slate-800/60 rounded-full text-xs font-semibold">
+                            {rec.tier}
+                          </span>
+                          {rec.is_used && (
+                            <span className="px-2 py-1 bg-red-500/30 rounded-full text-xs font-semibold flex items-center gap-1">
+                              <Lock className="w-3 h-3" />
+                              Used W{rec.used_week}
+                            </span>
+                          )}
+                        </div>
 
-          {/* Data Grid - 2 rows */}
-          <div className="space-y-2">
-            {/* Row 1: Odds & Probabilities */}
-            <div className="grid grid-cols-4 gap-3 text-sm">
-              <div>
-                <div className="text-xs text-slate-500">Win Odds</div>
-                <div className="font-bold text-emerald-400">{formatOdds(rec.win_odds)}</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">Win %</div>
-                <div className="font-semibold">{(rec.win_probability * 100).toFixed(1)}%</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">Top 5 %</div>
-                <div className="font-semibold">{(rec.top_5_probability * 100).toFixed(1)}%</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">Top 10 %</div>
-                <div className="font-semibold">{(rec.top_10_probability * 100).toFixed(1)}%</div>
-              </div>
-            </div>
+                        {/* Data Grid - 2 rows */}
+                        <div className="space-y-2">
+                          {/* Row 1: Odds & Probabilities */}
+                          <div className="grid grid-cols-4 gap-3 text-sm">
+                            <div>
+                              <div className="text-xs text-slate-500">Win Odds</div>
+                              <div className="font-bold text-emerald-400">{formatOdds(rec.win_odds)}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-slate-500">Win %</div>
+                              <div className="font-semibold">{(rec.win_probability * 100).toFixed(1)}%</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-slate-500">Top 5 %</div>
+                              <div className="font-semibold">{(rec.top_5_probability * 100).toFixed(1)}%</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-slate-500">Top 10 %</div>
+                              <div className="font-semibold">{(rec.top_10_probability * 100).toFixed(1)}%</div>
+                            </div>
+                          </div>
 
-            {/* Row 2: Other Stats */}
-            <div className="grid grid-cols-4 gap-3 text-sm">
-              <div>
-                <div className="text-xs text-slate-500">DK Salary</div>
-                <div className="font-semibold">{rec.dk_salary ? `$${(rec.dk_salary / 1000).toFixed(1)}K` : 'N/A'}</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">OWGR</div>
-                <div className="font-semibold">#{rec.owgr_rank}</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">Course Fit</div>
-                <div className="font-semibold">
-                  {rec.course_fit ? 
-                    `${rec.course_fit > 1 ? '+' : ''}${((rec.course_fit - 1) * 100).toFixed(0)}%` 
-                    : 'N/A'}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">Make Cut %</div>
-                <div className="font-semibold">{(rec.make_cut_probability * 100).toFixed(0)}%</div>
-              </div>
-            </div>
-          </div>
+                          {/* Row 2: Other Stats */}
+                          <div className="grid grid-cols-4 gap-3 text-sm">
+                            <div>
+                              <div className="text-xs text-slate-500">DK Salary</div>
+                              <div className="font-semibold">{rec.dk_salary ? `$${(rec.dk_salary / 1000).toFixed(1)}K` : 'N/A'}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-slate-500">OWGR</div>
+                              <div className="font-semibold">#{rec.owgr_rank}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-slate-500">Course Fit</div>
+                              <div className="font-semibold">
+                                {rec.course_fit ? 
+                                  `${rec.course_fit > 1 ? '+' : ''}${((rec.course_fit - 1) * 100).toFixed(0)}%` 
+                                  : 'N/A'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-slate-500">Make Cut %</div>
+                              <div className="font-semibold">{(rec.make_cut_probability * 100).toFixed(0)}%</div>
+                            </div>
+                          </div>
+                        </div>
 
-          {/* AI Narrative Section */}
-          <div className="mt-4">
-            {rec.narrative ? (
-              <div className="p-3 bg-slate-900/40 rounded-lg border border-slate-700/50">
-                <div className="flex items-start gap-2">
-                  <div className="text-emerald-400 mt-0.5">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-xs text-slate-500 mb-1">AI Analysis</div>
-                    <div className="text-sm text-slate-300 leading-relaxed">
-                      {rec.narrative}
+                        {/* AI Narrative Section */}
+                        <div className="mt-4">
+                          {rec.narrative ? (
+                            <div className="p-3 bg-slate-900/40 rounded-lg border border-slate-700/50">
+                              <div className="flex items-start gap-2">
+                                <div className="text-emerald-400 mt-0.5">
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                                  </svg>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="text-xs text-slate-500 mb-1">AI Analysis</div>
+                                  <div className="text-sm text-slate-300 leading-relaxed">
+                                    {rec.narrative}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => generateNarrative(rec)}
+                              disabled={loadingNarrativeFor === rec.dg_id}
+                              className="w-full px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 rounded-lg text-sm font-semibold text-emerald-400 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {loadingNarrativeFor === rec.dg_id ? (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                                  Generating Analysis...
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                                  </svg>
+                                  Generate AI Analysis
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Recommendation Badge */}
+                      <div className="text-right ml-4">
+                        <div className={`flex items-center gap-2 text-lg font-bold mb-1 ${getRecommendationColor(rec.recommendation_tier)}`}>
+                          <Icon className="w-5 h-5" />
+                          <span className="whitespace-nowrap">{rec.recommendation_tier}</span>
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          EV: ${(rec.recommendation_score / 1000).toFixed(1)}k
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Strategic Note */}
+                    {rec.strategic_note && (
+                      <div className="mt-3 text-xs text-yellow-400 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {rec.strategic_note}
+                      </div>
+                    )}
                   </div>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => generateNarrative(rec)}
-                disabled={loadingNarrative}
-                className="w-full px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 rounded-lg text-sm font-semibold text-emerald-400 transition-all flex items-center justify-center gap-2"
-              >
-                {loadingNarrative ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-                    Generating Analysis...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-                    </svg>
-                    Generate AI Analysis
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Recommendation Badge */}
-        <div className="text-right ml-4">
-          <div className={`flex items-center gap-2 text-lg font-bold mb-1 ${getRecommendationColor(rec.recommendation_tier)}`}>
-            <Icon className="w-5 h-5" />
-            <span className="whitespace-nowrap">{rec.recommendation_tier}</span>
-          </div>
-          <div className="text-xs text-slate-500">
-            EV: ${(rec.recommendation_score / 1000).toFixed(1)}k
-          </div>
-        </div>
-      </div>
-
-      {/* Strategic Note */}
-      {rec.strategic_note && (
-        <div className="mt-3 text-xs text-yellow-400 flex items-center gap-1">
-          <AlertCircle className="w-3 h-3" />
-          {rec.strategic_note}
-        </div>
-      )}
-    </div>
-  );
-})}
+                );
+              })}
             </div>
           )}
         </>

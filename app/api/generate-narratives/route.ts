@@ -5,52 +5,76 @@ export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   try {
-    const { players, tournament } = await request.json();
+    const { players, tournament, context } = await request.json();
     
-    // Generate narratives for all players in one batch
-    const narratives: { [key: number]: string } = {};
-    
-    for (const player of players) {
-      const prompt = `You are a professional golf analyst. Write a concise 2-3 sentence analysis for ${player.name} playing in ${tournament}.
-
-Data:
-- Tier: ${player.tier}, OWGR: #${player.owgr_rank}
-- Win odds: +${player.win_odds} (${(player.win_probability * 100).toFixed(1)}% probability)
-- Top 5: ${(player.top_5_probability * 100).toFixed(1)}%, Top 10: ${(player.top_10_probability * 100).toFixed(1)}%
-- DK Salary: $${player.dk_salary ? (player.dk_salary / 1000).toFixed(1) + 'K' : 'N/A'}
-- Course fit: ${player.course_fit ? ((player.course_fit - 1) * 100).toFixed(0) + '% vs baseline' : 'Unknown'}
-
-Focus on: value assessment, course fit implications, and strategic recommendation. Be specific and actionable. No preamble.`;
-
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "x-api-key": process.env.ANTHROPIC_API_KEY || "",
-    "anthropic-version": "2023-06-01"
-  },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 150,
-          messages: [
-            { role: "user", content: prompt }
-          ],
-        })
-      });
-
-      const data = await response.json();
-      const narrative = data.content?.[0]?.text || "Analysis unavailable.";
-      
-      narratives[player.dg_id] = narrative;
+    if (!players || players.length === 0) {
+      return NextResponse.json({ narratives: {}, tiers: {} });
     }
     
-    return NextResponse.json({ narratives });
+    // Generate narratives AND recommendation tiers in ONE call
+    const prompt = `You are a strategic golf pool analyst. For each player below, provide:
+1. A 2-3 sentence analysis focusing on value, course fit, and strategy
+2. A recommendation tier: TOP PICK, STRONG VALUE, SAVE FOR LATER, PLAYABLE, or LONGSHOT
+
+Tournament: ${tournament}
+${context ? `
+Week: ${context.week_number}/28
+Next Major: ${context.next_major ? context.next_major.name + ' in ' + context.next_major.weeks_away + ' weeks' : 'None soon'}
+Already Used: ${context.used_players?.length || 0} players
+` : ''}
+
+Players:
+${players.map((p: any, i: number) => `
+${i+1}. ${p.name} (${p.tier}, OWGR #${p.owgr_rank})
+- Win: +${p.win_odds} (${(p.win_probability * 100).toFixed(1)}% prob)
+- Top 5: ${(p.top_5_probability * 100).toFixed(1)}%, Top 10: ${(p.top_10_probability * 100).toFixed(1)}%
+- DK Salary: $${p.dk_salary ? (p.dk_salary / 1000).toFixed(1) : 'N/A'}K
+- Course Fit: ${p.course_fit ? ((p.course_fit - 1) * 100).toFixed(0) + '%' : 'Unknown'}
+- Expected Value: $${(p.recommendation_score / 1000).toFixed(1)}k
+`).join('\n')}
+
+Respond ONLY with valid JSON (no markdown):
+{
+  "narratives": {
+    "${players[0].dg_id}": "Your 2-3 sentence analysis...",
+    ...
+  },
+  "tiers": {
+    "${players[0].dg_id}": "TOP PICK",
+    ...
+  }
+}`;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY || "",
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+
+    if (!response.ok) {
+      console.error('Claude API error:', response.status, await response.text());
+      return NextResponse.json({ narratives: {}, tiers: {} });
+    }
+
+    const data = await response.json();
+    const rawText = data.content?.[0]?.text || '{"narratives":{},"tiers":{}}';
+    
+    // Parse JSON, removing markdown fences if present
+    const cleanText = rawText.replace(/```json\n?|```\n?/g, '').trim();
+    const result = JSON.parse(cleanText);
+    
+    return NextResponse.json(result);
     
   } catch (error) {
     console.error('Narrative generation error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to generate narratives',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return NextResponse.json({ narratives: {}, tiers: {} });
   }
 }
