@@ -71,6 +71,10 @@ interface PlayerRecommendation {
   narrative?: string;
 }
 
+const formatDollar = (amount: number) => {
+  return '$' + Math.round(amount).toLocaleString();
+};
+
 const GolfPoolTool = () => {
   const [activeTab, setActiveTab] = useState('weekly');
   
@@ -375,7 +379,7 @@ const GolfPoolTool = () => {
     <div className="glass rounded-xl p-4 text-center">
       <div className="text-sm text-slate-400">Season Total</div>
       <div className="text-4xl font-bold text-emerald-400">
-        ${(segmentStandings[0]?.season_total_earnings || 0).toLocaleString()}
+        {formatDollar(standing.season_total_earnings || 0)}
       </div>
       <div className="text-xs text-slate-500 mt-1">
         {segmentStandings.reduce((sum, s) => sum + s.events_completed, 0)}/28 events
@@ -388,7 +392,7 @@ const GolfPoolTool = () => {
         <div key={standing.segment} className="flex-1 text-center">
           <div className="text-xs text-slate-400">{standing.segment}</div>
           <div className="text-2xl font-bold text-emerald-400">
-            ${(standing.total_earnings || 0).toLocaleString()}
+            {formatDollar(standing.total_earnings || 0)}
           </div>
           <div className="text-xs text-slate-500">
             {standing.events_completed}/7 events
@@ -452,7 +456,7 @@ const GolfPoolTool = () => {
                 <div className="text-right">
                   <div className="text-sm text-slate-400">Earnings</div>
                   <div className="text-2xl font-bold text-emerald-400">
-                    ${currentPick.earnings.toLocaleString()}
+                    {formatDollar(currentPick.earnings)}
                   </div>
                 </div>
               </div>
@@ -724,12 +728,14 @@ const GolfPoolTool = () => {
                         </div>
                       </div>
 
-                      {/* Recommendation Badge */}
-                      <div className="text-right ml-4">
-                        <div className={`flex items-center gap-2 text-lg font-bold mb-1 ${getRecommendationColor(rec.recommendation_tier)}`}>
-                          <Icon className="w-5 h-5" />
-                          <span className="whitespace-nowrap">{rec.recommendation_tier}</span>
-                        </div>
+                      {/* Recommendation Badge - only show if narrative generated */}
+<div className="text-right ml-4">
+  {rec.narrative && (
+    <div className={`flex items-center gap-2 text-lg font-bold mb-1 ${getRecommendationColor(rec.recommendation_tier)}`}>
+      <Icon className="w-5 h-5" />
+      <span className="whitespace-nowrap">{rec.recommendation_tier}</span>
+    </div>
+  )}
                         <div className="text-xs text-slate-500">
                           EV: ${(rec.recommendation_score / 1000).toFixed(1)}k
                         </div>
@@ -777,7 +783,7 @@ const GolfPoolTool = () => {
                         <>
                           <div className="text-sm text-slate-400">T{pick.finish_position}</div>
                           <div className="text-xl font-bold text-emerald-400">
-                            ${pick.earnings.toLocaleString()}
+                            {formatDollar(pick.earnings)}
                           </div>
                         </>
                       ) : (

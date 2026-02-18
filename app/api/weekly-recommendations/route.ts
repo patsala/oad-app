@@ -33,20 +33,42 @@ function parseOdds(oddsString: string | undefined): number | undefined {
   return parseInt(oddsString.replace('+', ''));
 }
 
-function calculateEV(winProb: number, top5Prob: number, top10Prob: number, purse: number, multiplier: number): number {
+function calculateEV(
+  winProb: number, 
+  top5Prob: number, 
+  top10Prob: number, 
+  top20Prob: number,
+  makeCutProb: number,
+  purse: number, 
+  multiplier: number
+): number {
   const effectivePurse = purse * multiplier;
   
-  const winPayout = effectivePurse * 0.18;
-  const top5AvgPayout = effectivePurse * 0.08;
-  const top10AvgPayout = effectivePurse * 0.04;
-  const top20AvgPayout = effectivePurse * 0.02;
+  // PGA Tour standard payout percentages
+  const payouts = {
+    win: effectivePurse * 0.18,
+    second: effectivePurse * 0.109,
+    third: effectivePurse * 0.069,
+    top5_avg: effectivePurse * 0.048,    // Average for 4th-5th
+    top10_avg: effectivePurse * 0.032,   // Average for 6th-10th
+    top20_avg: effectivePurse * 0.018,   // Average for 11th-20th
+    top70_avg: effectivePurse * 0.008    // Average for 21st-70th (made cut)
+  };
   
-  const top20Prob = winProb * 15;
+  // Calculate incremental probabilities
+  const secondProb = (top5Prob - winProb) * 0.25;  // Rough: 1/4 of top5 finishing 2nd
+  const top5OnlyProb = top5Prob - winProb - secondProb;
+  const top10OnlyProb = top10Prob - top5Prob;
+  const top20OnlyProb = top20Prob - top10Prob;
+  const madeCutProb = makeCutProb - top20Prob;
   
-  const ev = (winProb * winPayout) + 
-             ((top5Prob - winProb) * top5AvgPayout) + 
-             ((top10Prob - top5Prob) * top10AvgPayout) +
-             ((top20Prob - top10Prob) * top20AvgPayout);
+  const ev = 
+    (winProb * payouts.win) +
+    (secondProb * payouts.second) +
+    (top5OnlyProb * payouts.top5_avg) +
+    (top10OnlyProb * payouts.top10_avg) +
+    (top20OnlyProb * payouts.top20_avg) +
+    (madeCutProb * payouts.top70_avg);
   
   return ev;
 }
@@ -143,8 +165,7 @@ export async function GET() {
       
       const ev = calculateEV(winProb, top5Prob, top10Prob, tournament.purse, tournament.multiplier);
       
-      const courseFit = playerProbCourseFit?.win ? 
-        (playerProbCourseFit.win / winProb) : undefined;
+      const courseFitWinProb = playerProbCourseFit?.win || undefined;
       
       preliminaryRecs.push({
         name: dbPlayer.name,
@@ -154,6 +175,7 @@ export async function GET() {
         datagolf_rank: dbPlayer.datagolf_rank || 999,
         win_odds: winOdds,
         win_probability: winProb,
+        course_fit_win_probability: courseFitWinProb,
         top_5_probability: top5Prob,
         top_10_probability: top10Prob,
         top_20_probability: top20Prob,
