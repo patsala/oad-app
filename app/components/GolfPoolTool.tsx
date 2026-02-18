@@ -672,10 +672,10 @@ const GolfPoolTool = () => {
                               <div className="font-semibold">#{rec.owgr_rank}</div>
                             </div>
                             <div>
-                              <div className="text-xs text-slate-500">Course Fit</div>
+                              <div className="text-xs text-slate-500">Course Win %</div>
                               <div className="font-semibold">
                                 {rec.course_fit ? 
-                                  `${rec.course_fit > 1 ? '+' : ''}${((rec.course_fit - 1) * 100).toFixed(0)}%` 
+                                  `${(rec.course_fit * 100).toFixed(1)}%` 
                                   : 'N/A'}
                               </div>
                             </div>
