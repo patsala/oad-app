@@ -164,7 +164,7 @@ export async function GET() {
       const makeCutProb = playerProb.make_cut || 0;
       
       const ev = calculateEV(winProb, top5Prob, top10Prob, top20Prob, makeCutProb, tournament.purse, tournament.multiplier);
-      
+
       const courseFitWinProb = playerProbCourseFit?.win || undefined;
       
       preliminaryRecs.push({
@@ -181,7 +181,7 @@ export async function GET() {
         top_20_probability: top20Prob,
         make_cut_probability: makeCutProb,
         dk_salary: playerDfs?.salary,
-        course_fit: courseFit,
+        course_fit: courseFitWinProb,
         is_used: isUsed,
         used_week: dbPlayer.used_in_week,
         ev: ev
