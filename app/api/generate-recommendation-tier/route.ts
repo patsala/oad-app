@@ -2,14 +2,21 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
+    const body = await request.json();
     const { 
-      players,  // Now an array
+      players,
       tournament, 
       segment_standings, 
       used_players, 
       upcoming_majors,
       week_number 
-    } = await request.json();
+    } = body;
+    
+    // Validation
+    if (!players || !tournament || !tournament.name) {
+      console.error('Missing required fields:', { players: !!players, tournament, week_number });
+      return NextResponse.json({ recommendations: {} });
+    }
     
     const prompt = `You are a strategic golf pool analyst. Analyze these ${players.length} players for a One & Done pool.
 
@@ -21,12 +28,12 @@ POOL RULES:
 
 CURRENT CONTEXT:
 Week: ${week_number}/28
-Tournament: ${tournament.name} (${tournament.event_type}, ${tournament.multiplier}x, ${tournament.segment})
-Segment Standings: ${JSON.stringify(segment_standings)}
+Tournament: ${tournament.name} (${tournament.event_type || 'Regular'}, ${tournament.multiplier || 1.0}x, ${tournament.segment || 'Q1'})
+Segment Standings: ${JSON.stringify(segment_standings || [])}
 
-ALREADY USED: ${used_players.map((p: any) => `${p.name} (${p.tier})`).join(', ')}
+ALREADY USED: ${(used_players || []).map((p: any) => `${p.name} (${p.tier})`).join(', ') || 'None'}
 
-UPCOMING MAJORS: ${upcoming_majors.map((m: any) => `${m.name} (${m.weeks_away}w)`).join(', ')}
+UPCOMING MAJORS: ${(upcoming_majors || []).map((m: any) => `${m.name} (${m.weeks_away}w)`).join(', ') || 'None'}
 
 PLAYERS TO ANALYZE:
 ${players.map((p: any, i: number) => `${i+1}. ${p.name} (${p.tier}, #${p.owgr_rank} OWGR, +${p.win_odds} odds, ${(p.win_probability*100).toFixed(1)}% win, $${(p.ev/1000).toFixed(0)}k EV)`).join('\n')}
@@ -42,8 +49,7 @@ TIERS:
 Respond ONLY with valid JSON (no markdown):
 {
   "recommendations": {
-    "${players[0].dg_id}": {"tier": "TOP PICK", "reasoning": "One sentence."},
-    ...
+    "18417": {"tier": "TOP PICK", "reasoning": "One sentence."}
   }
 }`;
 
@@ -56,6 +62,11 @@ Respond ONLY with valid JSON (no markdown):
         messages: [{ role: "user", content: prompt }]
       })
     });
+
+    if (!response.ok) {
+      console.error('Claude API error:', response.status, await response.text());
+      return NextResponse.json({ recommendations: {} });
+    }
 
     const data = await response.json();
     const rawText = data.content?.[0]?.text || '{}';
