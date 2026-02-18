@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/app/lib/db';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 interface PlayerRecommendation {
   name: string;
   dg_id: number;
