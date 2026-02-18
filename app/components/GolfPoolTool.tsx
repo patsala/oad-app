@@ -54,10 +54,12 @@ interface PlayerRecommendation {
   owgr_rank: number;
   datagolf_rank: number;
   win_odds: number;
-  top_5_odds?: number;
-  top_10_odds?: number;
-  top_20_odds?: number;
-  dk_salary?: number;  // ADD THIS
+  win_probability: number;
+  top_5_probability: number;
+  top_10_probability: number;
+  top_20_probability: number;
+  make_cut_probability: number;
+  dk_salary?: number;
   course_fit?: number;
   is_used: boolean;
   used_week?: number;
@@ -65,6 +67,7 @@ interface PlayerRecommendation {
   recommendation_tier: string;
   reasoning: string;
   strategic_note?: string;
+  narrative?: string;
 }
 
 const GolfPoolTool = () => {
@@ -177,7 +180,36 @@ const GolfPoolTool = () => {
       
       if (response.ok) {
         const data = await response.json();
-        setRecommendations(data.top_picks || []);
+        const picks = data.top_picks || [];
+        
+        // Generate narratives for all players
+        if (picks.length > 0 && currentTournament) {
+          const narrativeResponse = await fetch('/api/generate-narratives', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              players: picks,
+              tournament: currentTournament.event_name
+            })
+          });
+          
+          if (narrativeResponse.ok) {
+            const narrativeData = await narrativeResponse.json();
+            
+            // Merge narratives into picks
+            const picksWithNarratives = picks.map((pick: PlayerRecommendation) => ({
+              ...pick,
+              narrative: narrativeData.narratives[pick.dg_id] || 'Analysis pending...'
+            }));
+            
+            setRecommendations(picksWithNarratives);
+          } else {
+            setRecommendations(picks);
+          }
+        } else {
+          setRecommendations(picks);
+        }
+        
         setNextMajor(data.next_major);
       } else {
         console.error('Failed to load recommendations');
@@ -251,6 +283,8 @@ const GolfPoolTool = () => {
     if (rec.includes("STRONG")) return "text-emerald-400";
     if (rec.includes("SAVE")) return "text-purple-400";
     if (rec.includes("PLAYABLE")) return "text-yellow-400";
+    if (rec.includes("CONSIDER")) return "text-cyan-400";
+    if (rec.includes("LONGSHOT")) return "text-orange-400";
     return "text-red-400";
   };
 
@@ -523,7 +557,7 @@ const GolfPoolTool = () => {
               <div>
                 <h3 className="text-3xl text-emerald-400">INTELLIGENT PICKS</h3>
                 <p className="text-sm text-slate-500">
-                  Ranked by expected value • Live odds & course fit • Strategic considerations
+                  AI-powered analysis • Live odds & probabilities • Strategic recommendations
                 </p>
               </div>
               <button
@@ -557,9 +591,10 @@ const GolfPoolTool = () => {
                       rec.is_used ? 'opacity-50' : ''
                     }`}
                   >
-                    <div className="flex items-start justify-between">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                        <div className="flex items-center gap-3 mb-3">
                           <div className="text-xl font-bold text-slate-400">#{idx + 1}</div>
                           <h4 className="text-xl font-bold">{rec.name}</h4>
                           <span className="px-2 py-1 bg-slate-800/60 rounded-full text-xs font-semibold">
@@ -573,51 +608,92 @@ const GolfPoolTool = () => {
                           )}
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                          <div>
-                            <div className="text-xs text-slate-500">Win Odds</div>
-                            <div className="font-bold text-emerald-400">{formatOdds(rec.win_odds)}</div>
+                        {/* Data Grid - 2 rows */}
+                        <div className="space-y-2">
+                          {/* Row 1: Odds & Probabilities */}
+                          <div className="grid grid-cols-4 gap-3 text-sm">
+                            <div>
+                              <div className="text-xs text-slate-500">Win Odds</div>
+                              <div className="font-bold text-emerald-400">{formatOdds(rec.win_odds)}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-slate-500">Win %</div>
+                              <div className="font-semibold">{(rec.win_probability * 100).toFixed(1)}%</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-slate-500">Top 5 %</div>
+                              <div className="font-semibold">{(rec.top_5_probability * 100).toFixed(1)}%</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-slate-500">Top 10 %</div>
+                              <div className="font-semibold">{(rec.top_10_probability * 100).toFixed(1)}%</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Top 5</div>
-                            <div className="font-semibold">{rec.top_5_odds ? formatOdds(rec.top_5_odds) : 'N/A'}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Top 10</div>
-                            <div className="font-semibold">{rec.top_10_odds ? formatOdds(rec.top_10_odds) : 'N/A'}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">DK Salary</div>
-                            <div className="font-semibold">{rec.dk_salary ? `$${(rec.dk_salary / 1000).toFixed(1)}K` : 'N/A'}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">OWGR</div>
-                            <div className="font-semibold">#{rec.owgr_rank}</div>
+
+                          {/* Row 2: Other Stats */}
+                          <div className="grid grid-cols-4 gap-3 text-sm">
+                            <div>
+                              <div className="text-xs text-slate-500">DK Salary</div>
+                              <div className="font-semibold">{rec.dk_salary ? `$${(rec.dk_salary / 1000).toFixed(1)}K` : 'N/A'}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-slate-500">OWGR</div>
+                              <div className="font-semibold">#{rec.owgr_rank}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-slate-500">Course Fit</div>
+                              <div className="font-semibold">
+                                {rec.course_fit ? 
+                                  `${rec.course_fit > 1 ? '+' : ''}${((rec.course_fit - 1) * 100).toFixed(0)}%` 
+                                  : 'N/A'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-slate-500">Make Cut %</div>
+                              <div className="font-semibold">{(rec.make_cut_probability * 100).toFixed(0)}%</div>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="mt-3 text-sm text-slate-400">
-                          {rec.reasoning}
-                        </div>
-
-                        {rec.strategic_note && (
-                          <div className="mt-2 text-xs text-yellow-400 flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            {rec.strategic_note}
+                        {/* AI Narrative */}
+                        {rec.narrative && (
+                          <div className="mt-4 p-3 bg-slate-900/40 rounded-lg border border-slate-700/50">
+                            <div className="flex items-start gap-2">
+                              <div className="text-emerald-400 mt-0.5">
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                                </svg>
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-xs text-slate-500 mb-1">AI Analysis</div>
+                                <div className="text-sm text-slate-300 leading-relaxed">
+                                  {rec.narrative}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
 
+                      {/* Recommendation Badge */}
                       <div className="text-right ml-4">
                         <div className={`flex items-center gap-2 text-lg font-bold mb-1 ${getRecommendationColor(rec.recommendation_tier)}`}>
                           <Icon className="w-5 h-5" />
-                          <span>{rec.recommendation_tier}</span>
+                          <span className="whitespace-nowrap">{rec.recommendation_tier}</span>
                         </div>
                         <div className="text-xs text-slate-500">
                           EV: ${(rec.recommendation_score / 1000).toFixed(1)}k
                         </div>
                       </div>
                     </div>
+
+                    {/* Strategic Note */}
+                    {rec.strategic_note && (
+                      <div className="mt-3 text-xs text-yellow-400 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {rec.strategic_note}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -683,7 +759,7 @@ const GolfPoolTool = () => {
 
       {/* Footer */}
       <div className="max-w-7xl mx-auto mt-8 text-center text-slate-500 text-sm">
-        <p>Live data powered by DataGolf • {allPlayers.length} players in database</p>
+        <p>Live data powered by DataGolf • AI analysis by Claude</p>
         {currentTournament && (
           <p className="mt-1">
             Week {currentTournament.week_number} - {currentTournament.event_name}
