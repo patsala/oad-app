@@ -70,6 +70,19 @@ interface PlayerRecommendation {
   reasoning: string;
   strategic_note?: string;
   narrative?: string;
+  enrichment?: {
+    course_history_adj: number;
+    course_fit_adj: number;
+    sg_ott: number;
+    sg_app: number;
+    sg_arg: number;
+    sg_putt: number;
+    sg_total: number;
+    driving_acc: number;
+    driving_dist: number;
+    baseline_pred: number;
+    final_pred: number;
+  } | null;
 }
 
 // Helper function for dollar formatting
