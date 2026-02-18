@@ -10,6 +10,8 @@ interface PlayerRecommendation {
   win_odds: number;
   top_5_odds?: number;
   top_10_odds?: number;
+  top_20_odds?: number;
+  dk_salary?: number;
   course_fit?: number;
   recent_form?: string;
   is_used: boolean;
@@ -30,27 +32,28 @@ function oddsToProb(americanOdds: number): number {
 }
 
 // Parse DataGolf odds format ("+421" -> 421)
-function parseOdds(oddsString: string): number {
+function parseOdds(oddsString: string | undefined): number | undefined {
+  if (!oddsString) return undefined;
   return parseInt(oddsString.replace('+', ''));
 }
 
 // Calculate expected value
-function calculateEV(winOdds: number, purse: number, multiplier: number): number {
+function calculateEV(winOdds: number, top5Odds: number | undefined, top10Odds: number | undefined, purse: number, multiplier: number): number {
   const effectivePurse = purse * multiplier;
   const winProb = oddsToProb(winOdds);
   
-  // Simplified EV: just win probability * win payout
   const winPayout = effectivePurse * 0.18;
+  const top5Prob = top5Odds ? oddsToProb(top5Odds) : winProb * 5;
   const top5AvgPayout = effectivePurse * 0.08;
+  const top10Prob = top10Odds ? oddsToProb(top10Odds) : winProb * 10;
   const top10AvgPayout = effectivePurse * 0.04;
-  
-  // Estimate finish probabilities
-  const top5Prob = winProb * 5;
-  const top10Prob = winProb * 10;
+  const top20Prob = winProb * 15;
+  const top20AvgPayout = effectivePurse * 0.02;
   
   const ev = (winProb * winPayout) + 
              ((top5Prob - winProb) * top5AvgPayout) + 
-             ((top10Prob - top5Prob) * top10AvgPayout);
+             ((top10Prob - top5Prob) * top10AvgPayout) +
+             ((top20Prob - top10Prob) * top20AvgPayout);
   
   return ev;
 }
@@ -59,11 +62,19 @@ function calculateEV(winOdds: number, purse: number, multiplier: number): number
 function getRecommendationTier(
   tier: string, 
   ev: number, 
-  isElite: boolean, 
+  isElite: boolean,
+  winOdds: number,
   nextMajorWeeks: number
 ): { tier: string; reasoning: string; strategicNote?: string } {
   
   if (isElite && nextMajorWeeks <= 8) {
+    if (winOdds < 1000 && ev > 200000) {
+      return {
+        tier: 'CONSIDER',
+        reasoning: 'Elite player with strong odds this week',
+        strategicNote: `Major in ${nextMajorWeeks} weeks - weigh carefully`
+      };
+    }
     return {
       tier: 'SAVE FOR MAJOR',
       reasoning: 'Elite player - save for 1.5x multiplier events',
@@ -71,36 +82,31 @@ function getRecommendationTier(
     };
   }
   
-  if (ev > 150000 && (tier === 'Tier 1' || tier === 'Tier 2')) {
-    return {
-      tier: 'TOP PICK',
-      reasoning: 'High expected value with good course fit',
-    };
+  if (tier === 'Tier 1' && ev > 150000) {
+    return { tier: 'TOP PICK', reasoning: 'High expected value, strong form' };
   }
   
-  if (ev > 100000) {
-    return {
-      tier: 'STRONG VALUE',
-      reasoning: 'Solid value play for this week',
-    };
+  if ((tier === 'Tier 2' || tier === 'Tier 3') && ev > 120000) {
+    return { tier: 'TOP PICK', reasoning: 'Exceptional value at this tier' };
+  }
+  
+  if ((tier === 'Tier 1' || tier === 'Tier 2') && ev > 80000) {
+    return { tier: 'STRONG VALUE', reasoning: 'Good value with solid upside' };
   }
   
   if (ev > 50000) {
-    return {
-      tier: 'PLAYABLE',
-      reasoning: 'Decent option if saving elites',
-    };
+    return { tier: 'PLAYABLE', reasoning: 'Decent option with acceptable value' };
   }
   
-  return {
-    tier: 'AVOID',
-    reasoning: 'Low expected value',
-  };
+  if (ev > 25000) {
+    return { tier: 'LONGSHOT', reasoning: 'High risk, moderate upside' };
+  }
+  
+  return { tier: 'AVOID', reasoning: 'Low expected value' };
 }
 
 export async function GET() {
   try {
-    // Get current tournament
     const currentTournament = await query(
       `SELECT * FROM tournaments 
        WHERE is_completed = false 
@@ -114,7 +120,6 @@ export async function GET() {
     
     const tournament = currentTournament[0];
     
-    // Get next major
     const nextMajor = await query(
       `SELECT * FROM tournaments 
        WHERE event_type = 'Major' AND start_date > $1
@@ -127,25 +132,25 @@ export async function GET() {
       ? Math.ceil((new Date(nextMajor[0].start_date).getTime() - new Date(tournament.start_date).getTime()) / (7 * 24 * 60 * 60 * 1000))
       : 999;
     
-    // Fetch field and odds from DataGolf
-    const [fieldResponse, oddsResponse] = await Promise.all([
+    // Fetch field, odds, and DFS salaries from DataGolf
+    const [fieldResponse, oddsResponse, dfsResponse] = await Promise.all([
       fetch(`https://feeds.datagolf.com/field-updates?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`),
-      fetch(`https://feeds.datagolf.com/betting-tools/outrights?tour=pga&market=win&odds_format=american&file_format=json&key=${process.env.DATAGOLF_API_KEY}`)
+      fetch(`https://feeds.datagolf.com/betting-tools/outrights?tour=pga&market=win&odds_format=american&file_format=json&key=${process.env.DATAGOLF_API_KEY}`),
+      fetch(`https://feeds.datagolf.com/preds/fantasy-projection-defaults?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`)
     ]);
     
     const fieldData = await fieldResponse.json();
     const oddsData = await oddsResponse.json();
+    const dfsData = await dfsResponse.json();
     
-    // Get all players from database
     const dbPlayers = await query(
       'SELECT * FROM players ORDER BY datagolf_rank ASC'
     );
     
-    // Field data is a single object for current event
     const currentField = fieldData.field || [];
     const currentOdds = oddsData.odds || [];
+    const dfsProjections = dfsData.projections || [];
     
-    // Build recommendations
     const recommendations: PlayerRecommendation[] = [];
     
     for (const fieldPlayer of currentField) {
@@ -155,17 +160,25 @@ export async function GET() {
       const playerOdds = currentOdds.find((o: any) => o.dg_id === fieldPlayer.dg_id);
       if (!playerOdds || !playerOdds.datagolf?.baseline) continue;
       
+      const playerDfs = dfsProjections.find((d: any) => d.dg_id === fieldPlayer.dg_id);
+      
       const isUsed = dbPlayer.used_in_tournament_id !== null;
       const isElite = dbPlayer.tier === 'Elite';
       
       const winOdds = parseOdds(playerOdds.datagolf.baseline);
+      const top5Odds = parseOdds(playerOdds.datagolf?.baseline_top_5);
+      const top10Odds = parseOdds(playerOdds.datagolf?.baseline_top_10);
+      const top20Odds = parseOdds(playerOdds.datagolf?.baseline_top_20);
       
-      const ev = calculateEV(winOdds, tournament.purse, tournament.multiplier);
+      if (!winOdds) continue;
+      
+      const ev = calculateEV(winOdds, top5Odds, top10Odds, tournament.purse, tournament.multiplier);
       
       const recTier = getRecommendationTier(
         dbPlayer.tier,
         ev,
         isElite,
+        winOdds,
         weeksToMajor
       );
       
@@ -176,8 +189,12 @@ export async function GET() {
         owgr_rank: dbPlayer.owgr_rank || 999,
         datagolf_rank: dbPlayer.datagolf_rank || 999,
         win_odds: winOdds,
+        top_5_odds: top5Odds,
+        top_10_odds: top10Odds,
+        top_20_odds: top20Odds,
+        dk_salary: playerDfs?.salary,
         course_fit: playerOdds.datagolf?.baseline_history_fit ? 
-          (1 - parseOdds(playerOdds.datagolf.baseline_history_fit) / parseOdds(playerOdds.datagolf.baseline)) : undefined,
+          (parseOdds(playerOdds.datagolf.baseline_history_fit)! / winOdds) : undefined,
         is_used: isUsed,
         used_week: dbPlayer.used_in_week,
         recommendation_score: ev,
@@ -187,7 +204,6 @@ export async function GET() {
       });
     }
     
-    // Sort by EV and filter
     const sortedRecs = recommendations
       .sort((a, b) => b.recommendation_score - a.recommendation_score)
       .slice(0, 50);

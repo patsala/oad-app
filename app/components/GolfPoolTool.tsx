@@ -56,6 +56,8 @@ interface PlayerRecommendation {
   win_odds: number;
   top_5_odds?: number;
   top_10_odds?: number;
+  top_20_odds?: number;
+  dk_salary?: number;  // ADD THIS
   course_fit?: number;
   is_used: boolean;
   used_week?: number;
@@ -577,18 +579,20 @@ const GolfPoolTool = () => {
                             <div className="font-bold text-emerald-400">{formatOdds(rec.win_odds)}</div>
                           </div>
                           <div>
-                            <div className="text-xs text-slate-500">Top 5 Odds</div>
+                            <div className="text-xs text-slate-500">Top 5</div>
                             <div className="font-semibold">{rec.top_5_odds ? formatOdds(rec.top_5_odds) : 'N/A'}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-500">Top 10</div>
+                            <div className="font-semibold">{rec.top_10_odds ? formatOdds(rec.top_10_odds) : 'N/A'}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-500">DK Salary</div>
+                            <div className="font-semibold">{rec.dk_salary ? `$${(rec.dk_salary / 1000).toFixed(1)}K` : 'N/A'}</div>
                           </div>
                           <div>
                             <div className="text-xs text-slate-500">OWGR</div>
                             <div className="font-semibold">#{rec.owgr_rank}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Course Fit</div>
-                            <div className="font-semibold">
-                              {rec.course_fit ? `${(rec.course_fit * 100).toFixed(0)}%` : 'N/A'}
-                            </div>
                           </div>
                         </div>
 
