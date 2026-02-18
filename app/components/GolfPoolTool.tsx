@@ -392,7 +392,7 @@ const GolfPoolTool = () => {
         <div key={standing.segment} className="flex-1 text-center">
           <div className="text-xs text-slate-400">{standing.segment}</div>
           <div className="text-2xl font-bold text-emerald-400">
-            {formatDollar(segmentStandings.total_earnings || 0)}
+            {formatDollar(standing.total_earnings || 0)}
           </div>
           <div className="text-xs text-slate-500">
             {standing.events_completed}/7 events
