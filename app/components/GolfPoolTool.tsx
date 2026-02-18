@@ -443,7 +443,7 @@ const GolfPoolTool = () => {
                       />
                     </div>
 
-                    <div className="flex gap-4 items-end">
+                    <div className="flex gap-4">
                       <div className="flex-1">
                         <label className="block text-sm text-slate-400 mb-2">
                           Select Player ({filteredPlayers.length} {searchTerm ? 'results' : 'shown'})
@@ -472,7 +472,7 @@ const GolfPoolTool = () => {
                         </div>
                       </div>
 
-                      <div className="flex flex-col justify-end">
+                      <div className="pt-7">
                         <button
                           onClick={handleSubmitPick}
                           disabled={!selectedPickPlayer || isSubmitting}

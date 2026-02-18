@@ -39,8 +39,8 @@ export async function POST() {
     // Insert all players with full DataGolf data
     let count = 0;
     for (const player of data.rankings) {
-      // Only include PGA and EURO tour players (skip LIV/amateur)
-      if (player.primary_tour !== 'PGA' && player.primary_tour !== 'EURO') {
+      // Skip syncing Amateur golfers
+      if (player.primary_tour !== 'PGA' && player.primary_tour !== 'EURO' && player.primary_tour !== 'LIV') {
         continue;
       }
       
@@ -79,7 +79,7 @@ export async function POST() {
     return NextResponse.json({ 
       success: true, 
       count,
-      message: `Synced ${count} PGA/EURO players with full DataGolf data`
+      message: `Synced ${count} PGA/EURO/LIV players with full DataGolf data`
     });
   } catch (error) {
     console.error('Sync error:', error);
