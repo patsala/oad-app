@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Trophy, DollarSign, Target, Cloud, Wind, Droplets, ChevronDown, ChevronUp, Star, Clock, Calendar, Users, CheckCircle, XCircle } from 'lucide-react';
+import { TrendingUp, Trophy, DollarSign, Target, Cloud, Wind, Droplets, ChevronDown, ChevronUp, Star, Clock, Calendar, Users, CheckCircle, XCircle, Search } from 'lucide-react';
 
 // Type definitions
 interface Player {
@@ -19,6 +19,12 @@ interface Player {
   pebbleNotes: string;
   recommendation: string;
   reasoning: string;
+}
+
+interface DBPlayer {
+  id: number;
+  name: string;
+  tier: string;
 }
 
 interface Tournament {
@@ -57,9 +63,13 @@ const GolfPoolTool = () => {
   
   // Pick management state
   const [currentPick, setCurrentPick] = useState<Pick | null>(null);
+  const [allPlayers, setAllPlayers] = useState<DBPlayer[]>([]);
+  const [filteredPlayers, setFilteredPlayers] = useState<DBPlayer[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedPickPlayer, setSelectedPickPlayer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [loadingPlayers, setLoadingPlayers] = useState(true);
 
   // Pebble Beach tournament data
   const tournamentInfo = {
@@ -98,8 +108,8 @@ const GolfPoolTool = () => {
     { name: "Tour Championship", purse: 28.5, multiplier: 1.0, segment: "Q4", type: "Major-Style", date: "Aug 28-31", note: "Adjusted to avg of 4 majors" }
   ];
 
-  // Player data for your shortlist
-  const players: Player[] = [
+  // Curated shortlist for research (your original 13 players)
+  const shortlistPlayers: Player[] = [
     {
       name: "Scottie Scheffler",
       tier: "Elite",
@@ -310,10 +320,36 @@ const GolfPoolTool = () => {
     }
   ];
 
-  // Load current pick on mount
+  // Load players and current pick on mount
   useEffect(() => {
+    loadPlayers();
     loadCurrentPick();
   }, []);
+
+  // Filter players based on search
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredPlayers(allPlayers.slice(0, 50)); // Show top 50 by default
+    } else {
+      const filtered = allPlayers.filter(p => 
+        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredPlayers(filtered.slice(0, 50)); // Limit to 50 results
+    }
+  }, [searchTerm, allPlayers]);
+
+  const loadPlayers = async () => {
+    try {
+      const response = await fetch('/api/players');
+      const data = await response.json();
+      setAllPlayers(data.players);
+      setFilteredPlayers(data.players.slice(0, 50)); // Show first 50
+      setLoadingPlayers(false);
+    } catch (error) {
+      console.error('Failed to load players:', error);
+      setLoadingPlayers(false);
+    }
+  };
 
   const loadCurrentPick = async () => {
     try {
@@ -356,6 +392,7 @@ const GolfPoolTool = () => {
         setCurrentPick(data.pick);
         setSubmitMessage({ type: 'success', text: `✓ Locked in ${selectedPickPlayer} for Pebble Beach!` });
         setSelectedPickPlayer('');
+        setSearchTerm('');
       } else {
         setSubmitMessage({ type: 'error', text: 'Failed to save pick. Please try again.' });
       }
@@ -368,6 +405,7 @@ const GolfPoolTool = () => {
 
   const getTierColor = (tier: string) => {
     if (tier.includes("Elite")) return "from-yellow-500/20 to-yellow-600/20 border-yellow-500/50";
+    if (tier === "Tier 1") return "from-blue-400/20 to-blue-500/20 border-blue-400/50";
     if (tier === "Tier 2") return "from-blue-500/20 to-blue-600/20 border-blue-500/50";
     return "from-gray-500/20 to-gray-600/20 border-gray-500/50";
   };
@@ -385,50 +423,6 @@ const GolfPoolTool = () => {
     } else if (comparisonPlayers.length < 3) {
       setComparisonPlayers([...comparisonPlayers, player]);
     }
-  };
-
-  // Scenario modeling functions
-  const parseOdds = (oddsString: string) => {
-    const odds = parseInt(oddsString.replace('+', ''));
-    return odds > 0 ? (100 / (odds + 100)) : (Math.abs(odds) / (Math.abs(odds) + 100));
-  };
-
-  const calculateExpectedValue = (player: Player, tournament: Tournament) => {
-    const winProb = parseOdds(player.winOdds);
-    const top5Prob = parseOdds(player.top5Odds);
-    const top10Prob = parseOdds(player.top10Odds);
-    
-    const effectivePurse = tournament.purse * tournament.multiplier;
-    
-    // Estimated payout percentages
-    const winPayout = effectivePurse * 0.18; // ~18% to winner
-    const top5AvgPayout = effectivePurse * 0.08; // ~8% avg for top 5
-    const top10AvgPayout = effectivePurse * 0.04; // ~4% avg for top 10
-    const top20AvgPayout = effectivePurse * 0.02; // ~2% avg for top 20
-    
-    const expectedValue = 
-      (winProb * winPayout) + 
-      ((top5Prob - winProb) * top5AvgPayout) + 
-      ((top10Prob - top5Prob) * top10AvgPayout) +
-      ((0.7 - top10Prob) * top20AvgPayout); // assume 70% make top 20 in no-cut events
-    
-    return expectedValue;
-  };
-
-  const buildScenario = (playerName: string, tournamentName: string): Scenario | null => {
-    const player = players.find(p => p.name === playerName);
-    const tournament = upcomingTournaments.find(t => t.name === tournamentName);
-    
-    if (!player || !tournament) return null;
-    
-    const ev = calculateExpectedValue(player, tournament);
-    
-    return {
-      player,
-      tournament,
-      expectedValue: ev,
-      effectivePurse: tournament.purse * tournament.multiplier
-    };
   };
 
   return (
@@ -537,49 +531,72 @@ const GolfPoolTool = () => {
               <div>
                 <h3 className="text-2xl mb-4 text-emerald-400">MAKE YOUR PICK FOR PEBBLE BEACH</h3>
                 
-                <div className="flex gap-4 items-end">
-                  <div className="flex-1">
-                    <label className="block text-sm text-slate-400 mb-2">Select Player</label>
-                    <select
-                      value={selectedPickPlayer}
-                      onChange={(e) => setSelectedPickPlayer(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
-                      disabled={isSubmitting}
-                    >
-                      <option value="">-- Choose a player --</option>
-                      {players.map((player) => (
-                        <option key={player.name} value={player.name}>
-                          {player.name} ({player.tier}) - {player.winOdds}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {loadingPlayers ? (
+                  <div className="text-center py-8 text-slate-400">Loading players...</div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Search input */}
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Search for a player... (e.g., Tommy Fleetwood)"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-12 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
 
-                  <button
-                    onClick={handleSubmitPick}
-                    disabled={!selectedPickPlayer || isSubmitting}
-                    className={`px-8 py-3 rounded-lg font-bold transition-all ${
-                      !selectedPickPlayer || isSubmitting
-                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                        : 'bg-emerald-500 hover:bg-emerald-600 text-white glow'
-                    }`}
-                  >
-                    {isSubmitting ? 'Submitting...' : 'Lock In Pick'}
-                  </button>
-                </div>
+                    <div className="flex gap-4 items-end">
+                      <div className="flex-1">
+                        <label className="block text-sm text-slate-400 mb-2">
+                          Select Player ({filteredPlayers.length} {searchTerm ? 'results' : 'shown'})
+                        </label>
+                        <select
+                          value={selectedPickPlayer}
+                          onChange={(e) => setSelectedPickPlayer(e.target.value)}
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                          disabled={isSubmitting}
+                        >
+                          <option value="">-- Choose a player --</option>
+                          {filteredPlayers.map((player) => (
+                            <option key={player.id} value={player.name}>
+                              {player.name} ({player.tier})
+                            </option>
+                          ))}
+                        </select>
+                        <div className="text-xs text-slate-500 mt-1">
+                          {allPlayers.length} total players available • Search to find more
+                        </div>
+                      </div>
 
-                {submitMessage && (
-                  <div className={`mt-4 p-4 rounded-lg flex items-center gap-2 ${
-                    submitMessage.type === 'success' 
-                      ? 'bg-green-950/50 border border-green-500/50 text-green-300' 
-                      : 'bg-red-950/50 border border-red-500/50 text-red-300'
-                  }`}>
-                    {submitMessage.type === 'success' ? (
-                      <CheckCircle className="w-5 h-5" />
-                    ) : (
-                      <XCircle className="w-5 h-5" />
+                      <button
+                        onClick={handleSubmitPick}
+                        disabled={!selectedPickPlayer || isSubmitting}
+                        className={`px-8 py-3 rounded-lg font-bold transition-all ${
+                          !selectedPickPlayer || isSubmitting
+                            ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                            : 'bg-emerald-500 hover:bg-emerald-600 text-white glow'
+                        }`}
+                      >
+                        {isSubmitting ? 'Submitting...' : 'Lock In Pick'}
+                      </button>
+                    </div>
+
+                    {submitMessage && (
+                      <div className={`p-4 rounded-lg flex items-center gap-2 ${
+                        submitMessage.type === 'success' 
+                          ? 'bg-green-950/50 border border-green-500/50 text-green-300' 
+                          : 'bg-red-950/50 border border-red-500/50 text-red-300'
+                      }`}>
+                        {submitMessage.type === 'success' ? (
+                          <CheckCircle className="w-5 h-5" />
+                        ) : (
+                          <XCircle className="w-5 h-5" />
+                        )}
+                        <span>{submitMessage.text}</span>
+                      </div>
                     )}
-                    <span>{submitMessage.text}</span>
                   </div>
                 )}
               </div>
@@ -662,9 +679,15 @@ const GolfPoolTool = () => {
             </div>
           )}
 
-          {/* Players Grid */}
+          {/* Curated Shortlist Section */}
+          <div className="max-w-7xl mx-auto mb-6">
+            <h3 className="text-2xl mb-4 text-emerald-400">CURATED SHORTLIST FOR PEBBLE BEACH</h3>
+            <p className="text-slate-400 text-sm mb-4">In-depth analysis of top contenders and strategic picks</p>
+          </div>
+
+          {/* Players Grid (Shortlist) */}
           <div className="max-w-7xl mx-auto grid gap-6">
-            {players.map((player, idx) => (
+            {shortlistPlayers.map((player, idx) => (
               <div
                 key={idx}
                 className={`glass rounded-2xl p-6 cursor-pointer transition-all hover:scale-[1.01] animate-slide-in bg-gradient-to-br ${getTierColor(player.tier)} border`}
@@ -851,7 +874,7 @@ const GolfPoolTool = () => {
 
       {/* Footer */}
       <div className="max-w-7xl mx-auto mt-8 text-center text-slate-500 text-sm">
-        <p>Data compiled from DraftKings, FanDuel, and expert consensus • Weather from NWS</p>
+        <p>Data powered by DataGolf • {allPlayers.length} players in database</p>
         <p className="mt-1">Updated for Wednesday, February 11, 2026</p>
       </div>
     </div>
