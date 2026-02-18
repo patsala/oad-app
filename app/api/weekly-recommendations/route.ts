@@ -168,50 +168,61 @@ export async function GET() {
       .filter(r => !r.is_used)
       .slice(0, 30);
     
-    // Generate AI-powered recommendation tiers for top 30 players
-    const recommendations: PlayerRecommendation[] = [];
+   // Generate AI-powered recommendation tiers for all top players in ONE batch call
+try {
+  const recResponse = await fetch('https://oad-app.vercel.app/api/generate-recommendation-tier', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      players: topByEV,
+      tournament: {
+        name: tournament.event_name,
+        event_type: tournament.event_type,
+        multiplier: tournament.multiplier,
+        segment: tournament.segment
+      },
+      segment_standings: segmentStandings,
+      used_players: usedPlayers,
+      upcoming_majors: upcomingMajors,
+      week_number: tournament.week_number
+    })
+  });
+  
+  if (recResponse.ok) {
+    const recData = await recResponse.json();
     
-    for (const player of topByEV) {
-      try {
-        const recResponse = await fetch(`${process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'http://localhost:3000'}/api/generate-recommendation-tier`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            player,
-            tournament: {
-              name: tournament.event_name,
-              event_type: tournament.event_type,
-              multiplier: tournament.multiplier,
-              segment: tournament.segment
-            },
-            segment_standings: segmentStandings,
-            used_players: usedPlayers,
-            upcoming_majors: upcomingMajors,
-            week_number: tournament.week_number
-          })
-        });
-        
-        let recData = { tier: 'PLAYABLE', reasoning: 'Strategic analysis' };
-        if (recResponse.ok) {
-          recData = await recResponse.json();
-        }
-        
-        recommendations.push({
-          ...player,
-          recommendation_score: player.ev,
-          recommendation_tier: recData.tier,
-          reasoning: recData.reasoning
-        });
-      } catch (error) {
-        console.error(`Failed to generate recommendation for ${player.name}:`, error);
-        recommendations.push({
-          ...player,
-          recommendation_score: player.ev,
-          recommendation_tier: 'PLAYABLE',
-          reasoning: 'Strategic analysis pending'
-        });
-      }
-    }
+    // Merge AI recommendations
+    topByEV.forEach(player => {
+      const aiRec = recData.recommendations[player.dg_id] || { tier: 'PLAYABLE', reasoning: 'Analysis pending' };
+      recommendations.push({
+        ...player,
+        recommendation_score: player.ev,
+        recommendation_tier: aiRec.tier,
+        reasoning: aiRec.reasoning
+      });
+    });
+  } else {
+    // Fallback
+    topByEV.forEach(player => {
+      recommendations.push({
+        ...player,
+        recommendation_score: player.ev,
+        recommendation_tier: 'PLAYABLE',
+        reasoning: 'Strategic analysis pending'
+      });
+    });
+  }
+} catch (error) {
+  console.error('Failed to generate AI recommendations:', error);
+  topByEV.forEach(player => {
+    recommendations.push({
+      ...player,
+      recommendation_score: player.ev,
+      recommendation_tier: 'PLAYABLE',
+      reasoning: 'Strategic analysis pending'
+    });
+  });
+}
     
     // Take top 20 for display
     const finalRecs = recommendations.slice(0, 20);
