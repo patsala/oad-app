@@ -79,12 +79,12 @@ export async function GET() {
     
     // Get upcoming majors
     const upcomingMajors = await query(
-      `SELECT event_name as name, week_number as week, 
-              EXTRACT(DAY FROM (start_date - $1::date)) / 7 as weeks_away
-       FROM tournaments 
-       WHERE event_type = 'Major' AND start_date > $1
-       ORDER BY start_date ASC`,
-      [tournament.start_date]
+        `SELECT event_name as name, week_number as week, 
+                CEIL((DATE(start_date) - DATE($1)) / 7.0) as weeks_away
+        FROM tournaments 
+        WHERE event_type = 'Major' AND start_date > $1
+        ORDER BY start_date ASC`,
+        [tournament.start_date]
     );
     
     // Fetch field, odds, probabilities, and DFS salaries
