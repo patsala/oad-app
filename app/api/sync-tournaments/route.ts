@@ -1,9 +1,46 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/app/lib/db';
 
+// Your 28-event schedule - using key words for fuzzy matching
+const SEASON_SCHEDULE = [
+  { key: 'Pebble Beach', week: 1, segment: 'Q1' },
+  { key: 'Genesis Invitational', week: 2, segment: 'Q1' },
+  { key: 'Cognizant', week: 3, segment: 'Q1' },
+  { key: 'Arnold Palmer', week: 4, segment: 'Q1' },
+  { key: 'PLAYERS', week: 5, segment: 'Q1' },
+  { key: 'Valspar', week: 6, segment: 'Q1' },
+  { key: 'Houston Open', week: 7, segment: 'Q1' },
+  { key: 'Valero Texas', week: 8, segment: 'Q1' },
+  { key: 'Masters', week: 9, segment: 'Q2', multiplier: 1.5 },
+  { key: 'RBC Heritage', week: 10, segment: 'Q2' },
+  { key: 'Miami', week: 11, segment: 'Q2' },
+  { key: 'Truist', week: 12, segment: 'Q2' },
+  { key: 'PGA Championship', week: 13, segment: 'Q2', multiplier: 1.5 },
+  { key: 'CJ Cup', week: 14, segment: 'Q2' },
+  { key: 'Schwab Challenge', week: 15, segment: 'Q2' },
+  { key: 'Memorial', week: 16, segment: 'Q2' },
+  { key: 'Canadian Open', week: 17, segment: 'Q3' },
+  { key: 'U.S. Open', week: 18, segment: 'Q3', multiplier: 1.5 },
+  { key: 'Travelers', week: 19, segment: 'Q3' },
+  { key: 'John Deere', week: 20, segment: 'Q3' },
+  { key: 'Scottish Open', week: 21, segment: 'Q3' },
+  { key: 'Open Championship', week: 22, segment: 'Q3', multiplier: 1.5 }, // British Open
+  { key: '3M Open', week: 23, segment: 'Q3' },
+  { key: 'Rocket Mortgage', week: 24, segment: 'Q3' },
+  { key: 'Wyndham', week: 25, segment: 'Q3' },
+  { key: 'St. Jude', week: 26, segment: 'Q4' },
+  { key: 'BMW Championship', week: 27, segment: 'Q4' },
+  { key: 'TOUR Championship', week: 28, segment: 'Q4' },
+];
+
+function fuzzyMatch(dgName: string, searchKey: string): boolean {
+  const dgLower = dgName.toLowerCase();
+  const keyLower = searchKey.toLowerCase();
+  return dgLower.includes(keyLower) || keyLower.includes(dgLower.split(' ')[0]);
+}
+
 export async function POST() {
   try {
-    // Only fetch PGA Tour events (includes majors)
     const response = await fetch(
       `https://feeds.datagolf.com/get-schedule?tour=pga&season=2026&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
     );
@@ -14,61 +51,58 @@ export async function POST() {
     
     const data = await response.json();
     
-    // Clear existing PGA tournaments for 2026
-    await query('DELETE FROM tournaments WHERE season = 2026 AND tour = $1', ['pga']);
+    // Clear existing tournaments
+    await query('DELETE FROM tournaments WHERE season = 2026');
     
     let count = 0;
-    for (const event of data.schedule) {
-      // Skip non-PGA events (extra safety check, though tour=pga should already filter)
-      if (event.tour && event.tour !== 'pga') continue;
+    let notFound: string[] = [];
+    
+    for (const scheduleEvent of SEASON_SCHEDULE) {
+      // Find matching tournament in DataGolf feed using fuzzy matching
+      const dgEvent = data.schedule.find((e: any) => 
+        fuzzyMatch(e.event_name || '', scheduleEvent.key)
+      );
       
-      // Determine multiplier (1.5x for majors, 1.0x otherwise)
-      const isMajor = event.event_name?.includes('Masters') || 
-                     event.event_name?.includes('PGA Championship') ||
-                     event.event_name?.includes('U.S. Open') ||
-                     event.event_name?.includes('Open Championship') ||
-                     event.event_name?.includes('The Open');
-      const multiplier = isMajor ? 1.5 : 1.0;
+      if (!dgEvent) {
+        notFound.push(scheduleEvent.key);
+        continue;
+      }
       
-      // Determine segment based on end date
-      const endDate = new Date(event.end_date);
-      let segment = 'Q1';
-      if (endDate >= new Date('2026-04-01')) segment = 'Q2';
-      if (endDate >= new Date('2026-07-01')) segment = 'Q3';
-      if (endDate >= new Date('2026-10-01')) segment = 'Q4';
+      const multiplier = scheduleEvent.multiplier || 1.0;
       
       // Determine event type
       let eventType = 'Regular';
-      if (isMajor) eventType = 'Major';
-      else if (event.purse >= 20000000) eventType = 'Signature';
+      if (multiplier === 1.5) eventType = 'Major';
+      else if (dgEvent.purse >= 20000000) eventType = 'Signature';
       
       await query(
         `INSERT INTO tournaments (
           id, event_id, event_name, course_name, course_id, 
           city, country, latitude, longitude, 
           start_date, end_date, season, purse, multiplier, 
-          segment, event_type, tour, winner, is_completed
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+          segment, event_type, tour, winner, is_completed, week_number
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
         [
-          event.calendar_key || event.event_id,
-          event.event_id,
-          event.event_name,
-          event.course_name || event.course,
-          event.course_key || event.course_id,
-          event.city,
-          event.country,
-          event.lat,
-          event.lon,
-          event.start_date,
-          event.end_date,
+          dgEvent.calendar_key || dgEvent.event_id,
+          dgEvent.event_id,
+          dgEvent.event_name,
+          dgEvent.course_name || dgEvent.course,
+          dgEvent.course_key || dgEvent.course_id,
+          dgEvent.city,
+          dgEvent.country,
+          dgEvent.lat,
+          dgEvent.lon,
+          dgEvent.start_date,
+          dgEvent.end_date,
           2026,
-          event.purse || 0,
+          dgEvent.purse || 0,
           multiplier,
-          segment,
+          scheduleEvent.segment,
           eventType,
           'pga',
-          event.winner,
-          event.event_completed === true || event.winner !== null
+          dgEvent.winner,
+          dgEvent.event_completed === true || dgEvent.winner !== null,
+          scheduleEvent.week
         ]
       );
       count++;
@@ -77,7 +111,8 @@ export async function POST() {
     return NextResponse.json({ 
       success: true, 
       count,
-      message: `Synced ${count} PGA Tour events (including majors) for 2026`
+      notFound: notFound.length > 0 ? notFound : undefined,
+      message: `Synced ${count} of ${SEASON_SCHEDULE.length} scheduled tournaments`
     });
   } catch (error) {
     console.error('Sync error:', error);
