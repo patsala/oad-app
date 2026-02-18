@@ -379,7 +379,7 @@ const GolfPoolTool = () => {
     <div className="glass rounded-xl p-4 text-center">
       <div className="text-sm text-slate-400">Season Total</div>
       <div className="text-4xl font-bold text-emerald-400">
-        {formatDollar(standing.season_total_earnings || 0)}
+        {formatDollar(segmentStandings[0]?.season_total_earnings || 0)}
       </div>
       <div className="text-xs text-slate-500 mt-1">
         {segmentStandings.reduce((sum, s) => sum + s.events_completed, 0)}/28 events
@@ -392,7 +392,7 @@ const GolfPoolTool = () => {
         <div key={standing.segment} className="flex-1 text-center">
           <div className="text-xs text-slate-400">{standing.segment}</div>
           <div className="text-2xl font-bold text-emerald-400">
-            {formatDollar(standing.total_earnings || 0)}
+            {formatDollar(segmentStandings.total_earnings || 0)}
           </div>
           <div className="text-xs text-slate-500">
             {standing.events_completed}/7 events
