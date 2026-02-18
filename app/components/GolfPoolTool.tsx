@@ -174,24 +174,25 @@ const GolfPoolTool = () => {
   };
 
   const loadRecommendations = async () => {
-    try {
-      setLoadingRecommendations(true);
-      const response = await fetch('/api/weekly-recommendations');
+  try {
+    setLoadingRecommendations(true);
+    const response = await fetch('/api/weekly-recommendations');
+    
+    if (response.ok) {
+      const data = await response.json();
+      const picks = data.top_picks || [];
+      const tournamentName = data.tournament?.name || 'this tournament';
       
-      if (response.ok) {
-        const data = await response.json();
-        const picks = data.top_picks || [];
-        
-        // Generate narratives for all players
-        if (picks.length > 0 && currentTournament) {
-          const narrativeResponse = await fetch('/api/generate-narratives', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              players: picks,
-              tournament: currentTournament.event_name
-            })
-          });
+      // Generate narratives for all players
+      if (picks.length > 0) {
+        const narrativeResponse = await fetch('/api/generate-narratives', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            players: picks,
+            tournament: tournamentName  // Use tournament from recommendations API
+          })
+        });
           
           if (narrativeResponse.ok) {
             const narrativeData = await narrativeResponse.json();
