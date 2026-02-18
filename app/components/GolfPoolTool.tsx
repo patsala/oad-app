@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { TrendingUp, Trophy, DollarSign, Target, Cloud, Wind, Droplets, ChevronDown, ChevronUp, Star, Clock, Calendar, Users } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { TrendingUp, Trophy, DollarSign, Target, Cloud, Wind, Droplets, ChevronDown, ChevronUp, Star, Clock, Calendar, Users, CheckCircle, XCircle } from 'lucide-react';
 
 // Type definitions
 interface Player {
@@ -38,6 +38,15 @@ interface Scenario {
   effectivePurse: number;
 }
 
+interface Pick {
+  id: number;
+  tournament_id: number;
+  player_name: string;
+  earnings: number;
+  finish_position: number | null;
+  pick_date: string;
+}
+
 const GolfPoolTool = () => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [showComparison, setShowComparison] = useState(false);
@@ -45,6 +54,12 @@ const GolfPoolTool = () => {
   const [activeTab, setActiveTab] = useState('weekly');
   const [scenarioA, setScenarioA] = useState<Scenario | null>(null);
   const [scenarioB, setScenarioB] = useState<Scenario | null>(null);
+  
+  // Pick management state
+  const [currentPick, setCurrentPick] = useState<Pick | null>(null);
+  const [selectedPickPlayer, setSelectedPickPlayer] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
   // Pebble Beach tournament data
   const tournamentInfo = {
@@ -54,6 +69,7 @@ const GolfPoolTool = () => {
     multiplier: "1.0x (Signature Event)",
     segment: "Q1",
     deadline: "Tonight, 9 hours",
+    tournamentId: 1, // Database ID
     weather: {
       conditions: "Rain & Wind",
       temp: "58-62°F",
@@ -294,6 +310,62 @@ const GolfPoolTool = () => {
     }
   ];
 
+  // Load current pick on mount
+  useEffect(() => {
+    loadCurrentPick();
+  }, []);
+
+  const loadCurrentPick = async () => {
+    try {
+      const response = await fetch('/api/picks');
+      const data = await response.json();
+      
+      // Find pick for tournament ID 1 (Pebble Beach)
+      const pebblePick = data.picks.find((p: Pick) => p.tournament_id === tournamentInfo.tournamentId);
+      if (pebblePick) {
+        setCurrentPick(pebblePick);
+      }
+    } catch (error) {
+      console.error('Failed to load picks:', error);
+    }
+  };
+
+  const handleSubmitPick = async () => {
+    if (!selectedPickPlayer) {
+      setSubmitMessage({ type: 'error', text: 'Please select a player' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitMessage(null);
+
+    try {
+      const response = await fetch('/api/picks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tournament_id: tournamentInfo.tournamentId,
+          player_name: selectedPickPlayer,
+          earnings: 0,
+          finish_position: null
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentPick(data.pick);
+        setSubmitMessage({ type: 'success', text: `✓ Locked in ${selectedPickPlayer} for Pebble Beach!` });
+        setSelectedPickPlayer('');
+      } else {
+        setSubmitMessage({ type: 'error', text: 'Failed to save pick. Please try again.' });
+      }
+    } catch (error) {
+      setSubmitMessage({ type: 'error', text: 'Network error. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const getTierColor = (tier: string) => {
     if (tier.includes("Elite")) return "from-yellow-500/20 to-yellow-600/20 border-yellow-500/50";
     if (tier === "Tier 2") return "from-blue-500/20 to-blue-600/20 border-blue-500/50";
@@ -440,8 +512,82 @@ const GolfPoolTool = () => {
       {/* WEEKLY TAB - This Week's Pick */}
       {activeTab === 'weekly' && (
         <>
-          {/* Tournament Info Card */}
+          {/* Current Pick Status / Submission Form */}
           <div className="max-w-7xl mx-auto mb-8 glass rounded-2xl p-6 glow animate-slide-in" style={{animationDelay: '0.1s'}}>
+            {currentPick ? (
+              // Show current pick
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-slate-400 mb-1">YOUR PEBBLE BEACH PICK</div>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="w-8 h-8 text-green-400" />
+                    <div>
+                      <div className="text-3xl font-bold text-emerald-400">{currentPick.player_name}</div>
+                      <div className="text-sm text-slate-400">Locked in • Waiting for tournament results</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-slate-400">Current Earnings</div>
+                  <div className="text-2xl font-bold text-emerald-400">${currentPick.earnings.toLocaleString()}</div>
+                </div>
+              </div>
+            ) : (
+              // Show pick form
+              <div>
+                <h3 className="text-2xl mb-4 text-emerald-400">MAKE YOUR PICK FOR PEBBLE BEACH</h3>
+                
+                <div className="flex gap-4 items-end">
+                  <div className="flex-1">
+                    <label className="block text-sm text-slate-400 mb-2">Select Player</label>
+                    <select
+                      value={selectedPickPlayer}
+                      onChange={(e) => setSelectedPickPlayer(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">-- Choose a player --</option>
+                      {players.map((player) => (
+                        <option key={player.name} value={player.name}>
+                          {player.name} ({player.tier}) - {player.winOdds}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={handleSubmitPick}
+                    disabled={!selectedPickPlayer || isSubmitting}
+                    className={`px-8 py-3 rounded-lg font-bold transition-all ${
+                      !selectedPickPlayer || isSubmitting
+                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                        : 'bg-emerald-500 hover:bg-emerald-600 text-white glow'
+                    }`}
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Lock In Pick'}
+                  </button>
+                </div>
+
+                {submitMessage && (
+                  <div className={`mt-4 p-4 rounded-lg flex items-center gap-2 ${
+                    submitMessage.type === 'success' 
+                      ? 'bg-green-950/50 border border-green-500/50 text-green-300' 
+                      : 'bg-red-950/50 border border-red-500/50 text-red-300'
+                  }`}>
+                    {submitMessage.type === 'success' ? (
+                      <CheckCircle className="w-5 h-5" />
+                    ) : (
+                      <XCircle className="w-5 h-5" />
+                    )}
+                    <span>{submitMessage.text}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Tournament Info Card */}
+          <div className="max-w-7xl mx-auto mb-8 glass rounded-2xl p-6 glow animate-slide-in" style={{animationDelay: '0.15s'}}>
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="text-3xl mb-1 text-emerald-400">{tournamentInfo.name}</h2>
@@ -522,7 +668,7 @@ const GolfPoolTool = () => {
               <div
                 key={idx}
                 className={`glass rounded-2xl p-6 cursor-pointer transition-all hover:scale-[1.01] animate-slide-in bg-gradient-to-br ${getTierColor(player.tier)} border`}
-                style={{animationDelay: `${0.1 + idx * 0.05}s`}}
+                style={{animationDelay: `${0.2 + idx * 0.05}s`}}
                 onClick={() => setSelectedPlayer(selectedPlayer?.name === player.name ? null : player)}
               >
                 <div className="flex items-start justify-between mb-4">
