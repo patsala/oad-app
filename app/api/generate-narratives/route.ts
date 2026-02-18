@@ -11,36 +11,86 @@ export async function POST(request: Request) {
       return NextResponse.json({ narratives: {}, tiers: {} });
     }
     
-    const prompt = `You are an elite golf analyst with deep knowledge of course history, weather impacts, and player form. For each player, write a 3-5 sentence strategic analysis.
+    // Build rich context for each player
+    const enrichedPlayerDescriptions = players.map((p: any, i: number) => {
+      const enrichment = p.enrichment || {};
+      
+      // Identify elite skills
+      const eliteSkills = [];
+      if (enrichment.sg_putt > 0.4) eliteSkills.push('Elite Putter');
+      if (enrichment.sg_app > 0.8) eliteSkills.push('Elite Ball-Striker');
+      if (enrichment.sg_ott > 0.6) eliteSkills.push('Elite Off-the-Tee');
+      if (enrichment.sg_arg > 0.3) eliteSkills.push('Elite Scrambler');
+      
+      // Identify strengths and weaknesses
+      const skills = [
+        { name: 'Putting', value: enrichment.sg_putt || 0 },
+        { name: 'Approach', value: enrichment.sg_app || 0 },
+        { name: 'Off-the-Tee', value: enrichment.sg_ott || 0 },
+        { name: 'Short Game', value: enrichment.sg_arg || 0 }
+      ].sort((a, b) => b.value - a.value);
+      
+      const topSkill = skills[0];
+      const weakSkill = skills[skills.length - 1];
+      
+      // Course fit analysis
+      const courseHistBoost = enrichment.course_history_adj 
+        ? ((enrichment.course_history_adj * 100).toFixed(1) + '% course history boost')
+        : 'no course history data';
+      
+      const courseFitAdj = enrichment.course_fit_adj 
+        ? ((enrichment.course_fit_adj * 100).toFixed(1) + '% fit adjustment')
+        : 'neutral course fit';
+      
+      return `
+${i+1}. ${p.name} (${p.tier}, World #${p.owgr_rank})
+   Win Odds: +${p.win_odds} | Win Prob: ${(p.win_probability * 100).toFixed(1)}%
+   Top 5: ${(p.top_5_probability * 100).toFixed(1)}% | Top 10: ${(p.top_10_probability * 100).toFixed(1)}%
+   Expected Value: $${(p.recommendation_score / 1000).toFixed(0)}k
+   
+   SKILL PROFILE:
+   - Overall SG: ${enrichment.sg_total ? enrichment.sg_total.toFixed(2) : 'N/A'} strokes/round
+   - Strongest: ${topSkill.name} (${topSkill.value > 0 ? '+' : ''}${topSkill.value.toFixed(2)} SG)
+   - Weakest: ${weakSkill.name} (${weakSkill.value > 0 ? '+' : ''}${weakSkill.value.toFixed(2)} SG)
+   ${eliteSkills.length > 0 ? '- Elite Skills: ' + eliteSkills.join(', ') : ''}
+   
+   COURSE FIT:
+   - ${courseHistBoost}
+   - ${courseFitAdj}
+   - Baseline prediction: ${enrichment.baseline_pred ? enrichment.baseline_pred.toFixed(2) : 'N/A'} SG
+   - Course-adjusted: ${enrichment.final_pred ? enrichment.final_pred.toFixed(2) : 'N/A'} SG
+`;
+    }).join('\n');
+    
+    const prompt = `You are an elite PGA Tour analyst with access to advanced strokes-gained data. Write strategic 2-3 sentence analyses for each player.
 
-Tournament: ${tournament}
+TOURNAMENT: ${tournament}
 ${context ? `Week ${context.week_number}/28 | Next Major: ${context.next_major ? context.next_major.name + ' (' + context.next_major.weeks_away + 'w)' : 'None soon'}` : ''}
 
-Focus your analysis on:
-- Recent tournament performance and current form trajectory
-- Historical performance at THIS specific course/venue
-- How weather conditions (wind, rain, temperature) might favor/hurt this player based on their game style
-- Course fit based on player strengths (accuracy vs distance, scrambling, putting on similar greens)
-- Strategic value: Should they be used this week or saved for later based on upcoming schedule?
+PLAYERS WITH FULL DATA:
+${enrichedPlayerDescriptions}
 
-Players to analyze:
-${players.map((p: any, i: number) => `
-${i+1}. ${p.name} (${p.tier}, World #${p.owgr_rank})
-Win Probability: ${(p.win_probability * 100).toFixed(1)}% | Top 5: ${(p.top_5_probability * 100).toFixed(1)}% | Top 10: ${(p.top_10_probability * 100).toFixed(1)}%
-Odds: +${p.win_odds} | Course Fit vs Baseline: ${p.course_fit ? ((p.course_fit - 1) * 100).toFixed(0) + '%' : 'Unknown'}
-Expected Value: $${(p.recommendation_score / 1000).toFixed(0)}k
-`).join('\n')}
+ANALYSIS FRAMEWORK:
+1. **Skill Match**: Does this player's elite skills (putting, approach, driving) match what THIS course demands?
+2. **Course History**: How does their course history adjustment (+/- strokes) impact their value?
+3. **Strategic Value**: Given their tier, odds, and probabilities, is this the right week to use them?
+4. **Form Indicators**: What do their baseline vs adjusted predictions tell us about current form?
 
-For each player, provide:
-1. A 2-3 sentence holistic analysis (course history, weather fit, form, strategic timing)
-2. A recommendation: TOP PICK, STRONG VALUE, SAVE FOR LATER, PLAYABLE, or LONGSHOT
+CRITICAL INSTRUCTIONS:
+- Use the SPECIFIC strokes-gained data provided (e.g., "+1.18 SG Approach")
+- Reference course history boosts (e.g., "+10.8% course history advantage")
+- Compare skill strengths to course demands (accuracy vs distance)
+- Assess VALUE: do the odds match the probability? (e.g., 19% win prob at +421 is great value)
+- Be SPECIFIC about numbers, not generic
 
-Be specific about WHY this week makes sense (or doesn't) for using this player.
+For each player provide:
+1. Concise 2-3 sentence strategic analysis using the data
+2. Recommendation tier: TOP PICK, STRONG VALUE, SAVE FOR LATER, PLAYABLE, or LONGSHOT
 
-Respond with valid JSON (no markdown):
+Response format (valid JSON, no markdown):
 {
   "narratives": {
-    "${players[0].dg_id}": "Your analysis here...",
+    "${players[0].dg_id}": "Your specific, data-driven analysis...",
     ...
   },
   "tiers": {
@@ -71,7 +121,6 @@ Respond with valid JSON (no markdown):
     const data = await response.json();
     const rawText = data.content?.[0]?.text || '{"narratives":{},"tiers":{}}';
     
-    // Parse JSON, removing markdown fences if present
     const cleanText = rawText.replace(/```json\n?|```\n?/g, '').trim();
     const result = JSON.parse(cleanText);
     

@@ -26,6 +26,7 @@ interface PlayerRecommendation {
   strategic_note?: string;
   narrative?: string;
   ev?: number;
+  enrichment?: any;
 }
 
 function parseOdds(oddsString: string | undefined): number | undefined {
@@ -33,37 +34,46 @@ function parseOdds(oddsString: string | undefined): number | undefined {
   return parseInt(oddsString.replace('+', ''));
 }
 
-function calculateEV(
+function calculateEnhancedEV(
   winProb: number, 
   top5Prob: number, 
   top10Prob: number, 
   top20Prob: number,
   makeCutProb: number,
   purse: number, 
-  multiplier: number
+  multiplier: number,
+  courseHistoryAdj: number = 0,
+  courseFitAdj: number = 0
 ): number {
   const effectivePurse = purse * multiplier;
+  
+  // Apply course adjustments to probabilities
+  const adjustmentFactor = 1 + (courseHistoryAdj + courseFitAdj) / 3; // Normalize adjustment
+  const adjustedWinProb = Math.min(1, Math.max(0, winProb * adjustmentFactor));
+  const adjustedTop5Prob = Math.min(1, Math.max(0, top5Prob * adjustmentFactor));
+  const adjustedTop10Prob = Math.min(1, Math.max(0, top10Prob * adjustmentFactor));
+  const adjustedTop20Prob = Math.min(1, Math.max(0, top20Prob * adjustmentFactor));
   
   // PGA Tour standard payout percentages
   const payouts = {
     win: effectivePurse * 0.18,
     second: effectivePurse * 0.109,
     third: effectivePurse * 0.069,
-    top5_avg: effectivePurse * 0.048,    // Average for 4th-5th
-    top10_avg: effectivePurse * 0.032,   // Average for 6th-10th
-    top20_avg: effectivePurse * 0.018,   // Average for 11th-20th
-    top70_avg: effectivePurse * 0.008    // Average for 21st-70th (made cut)
+    top5_avg: effectivePurse * 0.048,
+    top10_avg: effectivePurse * 0.032,
+    top20_avg: effectivePurse * 0.018,
+    top70_avg: effectivePurse * 0.008
   };
   
   // Calculate incremental probabilities
-  const secondProb = (top5Prob - winProb) * 0.25;  // Rough: 1/4 of top5 finishing 2nd
-  const top5OnlyProb = top5Prob - winProb - secondProb;
-  const top10OnlyProb = top10Prob - top5Prob;
-  const top20OnlyProb = top20Prob - top10Prob;
-  const madeCutProb = makeCutProb - top20Prob;
+  const secondProb = (adjustedTop5Prob - adjustedWinProb) * 0.25;
+  const top5OnlyProb = adjustedTop5Prob - adjustedWinProb - secondProb;
+  const top10OnlyProb = adjustedTop10Prob - adjustedTop5Prob;
+  const top20OnlyProb = adjustedTop20Prob - adjustedTop10Prob;
+  const madeCutProb = makeCutProb - adjustedTop20Prob;
   
   const ev = 
-    (winProb * payouts.win) +
+    (adjustedWinProb * payouts.win) +
     (secondProb * payouts.second) +
     (top5OnlyProb * payouts.top5_avg) +
     (top10OnlyProb * payouts.top10_avg) +
@@ -71,6 +81,23 @@ function calculateEV(
     (madeCutProb * payouts.top70_avg);
   
   return ev;
+}
+
+function calculateSkillMatchScore(enrichment: any, courseType: string = 'accuracy'): number {
+  if (!enrichment) return 0;
+  
+  // Course type determines which skills matter most
+  const weights = courseType === 'accuracy' 
+    ? { sg_app: 0.4, sg_ott: 0.2, sg_arg: 0.2, sg_putt: 0.2 }  // Accuracy course (like Riviera)
+    : { sg_ott: 0.3, sg_app: 0.3, sg_arg: 0.2, sg_putt: 0.2 }; // Bomber course
+  
+  const score = 
+    (enrichment.sg_app || 0) * weights.sg_app +
+    (enrichment.sg_ott || 0) * weights.sg_ott +
+    (enrichment.sg_arg || 0) * weights.sg_arg +
+    (enrichment.sg_putt || 0) * weights.sg_putt;
+  
+  return score;
 }
 
 export async function GET() {
@@ -113,6 +140,16 @@ export async function GET() {
       [tournament.start_date]
     );
     
+    // Fetch all enrichment data in ONE query
+    const allEnrichment = await query(
+      'SELECT * FROM player_enrichment_cache'
+    );
+    
+    const enrichmentMap = new Map();
+    allEnrichment.forEach((e: any) => {
+      enrichmentMap.set(e.dg_id, e);
+    });
+    
     // Fetch field, odds, probabilities, and DFS salaries
     const [fieldResponse, oddsResponse, probabilitiesResponse, dfsResponse] = await Promise.all([
       fetch(`https://feeds.datagolf.com/field-updates?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`),
@@ -138,7 +175,10 @@ export async function GET() {
     
     const preliminaryRecs: any[] = [];
     
-    // Build preliminary recommendations with EV
+    // Determine course type (simple heuristic - can be enhanced)
+    const courseType = 'accuracy'; // Default for most courses
+    
+    // Build preliminary recommendations with EV and enrichment
     for (const fieldPlayer of currentField) {
       const dbPlayer = dbPlayers.find((p: any) => p.dg_id === fieldPlayer.dg_id);
       if (!dbPlayer) continue;
@@ -163,9 +203,32 @@ export async function GET() {
       const top20Prob = playerProb.top_20 || 0;
       const makeCutProb = playerProb.make_cut || 0;
       
-      const ev = calculateEV(winProb, top5Prob, top10Prob, top20Prob, makeCutProb, tournament.purse, tournament.multiplier);
-
       const courseFitWinProb = playerProbCourseFit?.win || undefined;
+      
+      // Get enrichment data
+      const enrichData = enrichmentMap.get(fieldPlayer.dg_id);
+      
+      const courseHistoryAdj = enrichData?.course_history_adjustment || 0;
+      const courseFitAdj = enrichData?.course_fit_adjustment || 0;
+      
+      // Calculate enhanced EV with course adjustments
+      const ev = calculateEnhancedEV(
+        winProb, 
+        top5Prob, 
+        top10Prob, 
+        top20Prob,
+        makeCutProb,
+        tournament.purse, 
+        tournament.multiplier,
+        courseHistoryAdj,
+        courseFitAdj
+      );
+      
+      // Calculate skill match score
+      const skillMatchScore = enrichData ? calculateSkillMatchScore(enrichData, courseType) : 0;
+      
+      // Calculate final ranking score (EV + skill match bonus)
+      const rankingScore = ev * (1 + skillMatchScore * 0.1); // 10% bonus for skill match
       
       preliminaryRecs.push({
         name: dbPlayer.name,
@@ -175,7 +238,6 @@ export async function GET() {
         datagolf_rank: dbPlayer.datagolf_rank || 999,
         win_odds: winOdds,
         win_probability: winProb,
-        course_fit_win_probability: courseFitWinProb,
         top_5_probability: top5Prob,
         top_10_probability: top10Prob,
         top_20_probability: top20Prob,
@@ -184,76 +246,60 @@ export async function GET() {
         course_fit: courseFitWinProb,
         is_used: isUsed,
         used_week: dbPlayer.used_in_week,
-        ev: ev
+        ev: ev,
+        ranking_score: rankingScore,
+        skill_match_score: skillMatchScore,
+        enrichment: enrichData ? {
+          course_history_adj: enrichData.course_history_adjustment,
+          course_fit_adj: enrichData.course_fit_adjustment,
+          sg_ott: enrichData.sg_ott,
+          sg_app: enrichData.sg_app,
+          sg_arg: enrichData.sg_arg,
+          sg_putt: enrichData.sg_putt,
+          sg_total: enrichData.sg_total,
+          driving_acc: enrichData.driving_acc,
+          driving_dist: enrichData.driving_dist,
+          baseline_pred: enrichData.baseline_pred,
+          final_pred: enrichData.final_pred
+        } : null
       });
     }
     
-    // Sort by EV and take top 30 for AI analysis
-    const topByEV = preliminaryRecs
-      .sort((a, b) => b.ev - a.ev)
-      .filter(r => !r.is_used)
-      .slice(0, 30);
+    // Sort by enhanced ranking score (not just EV)
+    const sortedRecs = preliminaryRecs
+      .sort((a, b) => b.ranking_score - a.ranking_score)
+      .slice(0, 50);
     
-    // Generate AI-powered recommendation tiers for all top players in ONE batch call
+    const availableRecs = sortedRecs.filter(r => !r.is_used).slice(0, 30);
+    
+    // Skip AI recommendation tiers - just use simple EV-based tiers
     const recommendations: PlayerRecommendation[] = [];
     
-    try {
-      const recResponse = await fetch('https://oad-app.vercel.app/api/generate-recommendation-tier', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          players: topByEV,
-          tournament: {
-            name: tournament.event_name,
-            event_type: tournament.event_type,
-            multiplier: tournament.multiplier,
-            segment: tournament.segment
-          },
-          segment_standings: segmentStandings,
-          used_players: usedPlayers,
-          upcoming_majors: upcomingMajors,
-          week_number: tournament.week_number
-        })
-      });
+    availableRecs.forEach((player, index) => {
+      let tier = 'VALUE PLAY';
+      let reasoning = 'Ranked by expected value with course fit adjustments';
       
-      if (recResponse.ok) {
-        const recData = await recResponse.json();
-        
-        // Merge AI recommendations
-        topByEV.forEach(player => {
-          const aiRec = recData.recommendations?.[player.dg_id] || { tier: 'PLAYABLE', reasoning: 'Analysis pending' };
-          recommendations.push({
-            ...player,
-            recommendation_score: player.ev,
-            recommendation_tier: aiRec.tier,
-            reasoning: aiRec.reasoning
-          });
-        });
-      } else {
-        // Fallback
-        topByEV.forEach(player => {
-          recommendations.push({
-            ...player,
-            recommendation_score: player.ev,
-            recommendation_tier: 'PLAYABLE',
-            reasoning: 'Strategic analysis pending'
-          });
-        });
+      if (index < 3) {
+        tier = 'TOP PICK';
+        reasoning = 'Highest value with elite course fit';
+      } else if (index < 8) {
+        tier = 'STRONG VALUE';
+        reasoning = 'Excellent value with strong upside';
+      } else if (index < 15) {
+        tier = 'PLAYABLE';
+        reasoning = 'Solid option worth considering';
       }
-    } catch (error) {
-      console.error('Failed to generate AI recommendations:', error);
-      topByEV.forEach(player => {
-        recommendations.push({
-          ...player,
-          recommendation_score: player.ev,
-          recommendation_tier: 'PLAYABLE',
-          reasoning: 'Strategic analysis pending'
-        });
+      
+      recommendations.push({
+        ...player,
+        recommendation_score: player.ranking_score,
+        recommendation_tier: tier,
+        reasoning: reasoning
       });
-    }
+    });
     
-    // Return top 20 WITHOUT narratives (narratives generated on-demand by user)
-    const top20 = recommendations.slice(0, 20);
+    // Take top 20 for display
+    const finalRecs = recommendations.slice(0, 20);
     
     return NextResponse.json({
       tournament: {
@@ -264,7 +310,7 @@ export async function GET() {
         segment: tournament.segment
       },
       next_major: upcomingMajors?.[0] || null,
-      top_picks: top20,
+      top_picks: finalRecs,
       total_in_field: preliminaryRecs.length
     });
     
