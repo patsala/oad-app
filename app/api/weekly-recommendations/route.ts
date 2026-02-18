@@ -163,7 +163,7 @@ export async function GET() {
       const top20Prob = playerProb.top_20 || 0;
       const makeCutProb = playerProb.make_cut || 0;
       
-      const ev = calculateEV(winProb, top5Prob, top10Prob, tournament.purse, tournament.multiplier);
+      const ev = calculateEV(winProb, top5Prob, top10Prob, top20Prob, makeCutProb, tournament.purse, tournament.multiplier);
       
       const courseFitWinProb = playerProbCourseFit?.win || undefined;
       
