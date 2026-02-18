@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Trophy, DollarSign, Target, Cloud, Wind, Droplets, ChevronDown, ChevronUp, Star, Clock, Calendar, Users } from 'lucide-react';
+import React, { useState } from 'react';
+import { TrendingUp, Trophy, DollarSign, Target, Cloud, Wind, Droplets, ChevronDown, ChevronUp, Star, Clock, Calendar, Users } from 'lucide-react';
 
-// Add these type definitions:
+// Type definitions
 interface Player {
   name: string;
   tier: string;
@@ -31,13 +31,20 @@ interface Tournament {
   note?: string;
 }
 
+interface Scenario {
+  player: Player;
+  tournament: Tournament;
+  expectedValue: number;
+  effectivePurse: number;
+}
+
 const GolfPoolTool = () => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [showComparison, setShowComparison] = useState(false);
   const [comparisonPlayers, setComparisonPlayers] = useState<Player[]>([]);
   const [activeTab, setActiveTab] = useState('weekly');
-  const [scenarioA, setScenarioA] = useState<any>(null);
-  const [scenarioB, setScenarioB] = useState<any>(null);
+  const [scenarioA, setScenarioA] = useState<Scenario | null>(null);
+  const [scenarioB, setScenarioB] = useState<Scenario | null>(null);
 
   // Pebble Beach tournament data
   const tournamentInfo = {
@@ -57,7 +64,7 @@ const GolfPoolTool = () => {
   };
 
   // Upcoming tournaments for scenario modeling
-  const upcomingTournaments = [
+  const upcomingTournaments: Tournament[] = [
     { name: "AT&T Pebble Beach", purse: 20, multiplier: 1.0, segment: "Q1", type: "Signature", date: "Feb 13-16" },
     { name: "Genesis Invitational", purse: 20, multiplier: 1.0, segment: "Q1", type: "Signature", date: "Feb 20-23" },
     { name: "Cognizant Classic", purse: 8.6, multiplier: 1.0, segment: "Q1", type: "Regular", date: "Feb 27-Mar 2" },
@@ -76,7 +83,7 @@ const GolfPoolTool = () => {
   ];
 
   // Player data for your shortlist
-  const players = [
+  const players: Player[] = [
     {
       name: "Scottie Scheffler",
       tier: "Elite",
@@ -284,7 +291,7 @@ const GolfPoolTool = () => {
       pebbleNotes: "RED HOT - Just won Phoenix in playoff. 4 PGA wins total, tied with Scheffler/McIlroy for most since 2024. Elite ball-striking but Pebble debut is concern",
       recommendation: "ELITE HOT HAND",
       reasoning: "2 wins in 3 starts! World #5. High risk/high reward - no Pebble history but unstoppable form"
-    },
+    }
   ];
 
   const getTierColor = (tier: string) => {
@@ -300,7 +307,7 @@ const GolfPoolTool = () => {
     return "text-yellow-400";
   };
 
-  const toggleComparison = (player: any) => {
+  const toggleComparison = (player: Player) => {
     if (comparisonPlayers.find(p => p.name === player.name)) {
       setComparisonPlayers(comparisonPlayers.filter(p => p.name !== player.name));
     } else if (comparisonPlayers.length < 3) {
@@ -309,12 +316,12 @@ const GolfPoolTool = () => {
   };
 
   // Scenario modeling functions
-  const parseOdds = (oddsString) => {
+  const parseOdds = (oddsString: string) => {
     const odds = parseInt(oddsString.replace('+', ''));
     return odds > 0 ? (100 / (odds + 100)) : (Math.abs(odds) / (Math.abs(odds) + 100));
   };
 
-  const calculateExpectedValue = (player, tournament) => {
+  const calculateExpectedValue = (player: Player, tournament: Tournament) => {
     const winProb = parseOdds(player.winOdds);
     const top5Prob = parseOdds(player.top5Odds);
     const top10Prob = parseOdds(player.top10Odds);
@@ -336,7 +343,7 @@ const GolfPoolTool = () => {
     return expectedValue;
   };
 
-  const buildScenario = (playerName, tournamentName) => {
+  const buildScenario = (playerName: string, tournamentName: string): Scenario | null => {
     const player = players.find(p => p.name === playerName);
     const tournament = upcomingTournaments.find(t => t.name === tournamentName);
     
@@ -670,258 +677,27 @@ const GolfPoolTool = () => {
 
       {/* SCENARIO MODELING TAB */}
       {activeTab === 'scenario' && (
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div className="glass rounded-2xl p-6 glow">
+        <div className="max-w-7xl mx-auto">
+          <div className="glass rounded-2xl p-6">
             <h2 className="text-3xl mb-2 text-emerald-400">SCENARIO MODELING</h2>
-            <p className="text-slate-400 mb-6">Compare different player allocation strategies across tournaments</p>
-
-            {/* Scenario Builder */}
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-              {/* Scenario A */}
-              <div className="bg-gradient-to-br from-blue-950/50 to-slate-900/50 rounded-xl p-6 border border-blue-500/30">
-                <h3 className="text-xl font-bold mb-4 text-blue-400">SCENARIO A</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-2">Player</label>
-                    <select 
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white"
-                      onChange={(e) => {
-                        const scenario = buildScenario(e.target.value, document.getElementById('scenarioA-tournament').value);
-                        setScenarioA(scenario);
-                      }}
-                      id="scenarioA-player"
-                    >
-                      <option value="">Select player...</option>
-                      {players.map(p => (
-                        <option key={p.name} value={p.name}>{p.name} ({p.tier})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-2">Tournament</label>
-                    <select 
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white"
-                      onChange={(e) => {
-                        const scenario = buildScenario(document.getElementById('scenarioA-player').value, e.target.value);
-                        setScenarioA(scenario);
-                      }}
-                      id="scenarioA-tournament"
-                    >
-                      <option value="">Select tournament...</option>
-                      {upcomingTournaments.map(t => (
-                        <option key={t.name} value={t.name}>
-                          {t.name} ({t.type}) - ${t.purse}M {t.multiplier > 1 ? `x${t.multiplier}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {scenarioA && (
-                    <div className="mt-6 p-4 bg-slate-800/60 rounded-lg border border-blue-500/30">
-                      <div className="text-sm space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Effective Purse:</span>
-                          <span className="font-bold text-blue-400">${scenarioA.effectivePurse.toFixed(1)}M</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Win Odds:</span>
-                          <span className="font-semibold">{scenarioA.player.winOdds}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Expected Value:</span>
-                          <span className="font-bold text-emerald-400">${(scenarioA.expectedValue / 1000000).toFixed(2)}M</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Scenario B */}
-              <div className="bg-gradient-to-br from-purple-950/50 to-slate-900/50 rounded-xl p-6 border border-purple-500/30">
-                <h3 className="text-xl font-bold mb-4 text-purple-400">SCENARIO B</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-2">Player</label>
-                    <select 
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white"
-                      onChange={(e) => {
-                        const scenario = buildScenario(e.target.value, document.getElementById('scenarioB-tournament').value);
-                        setScenarioB(scenario);
-                      }}
-                      id="scenarioB-player"
-                    >
-                      <option value="">Select player...</option>
-                      {players.map(p => (
-                        <option key={p.name} value={p.name}>{p.name} ({p.tier})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-2">Tournament</label>
-                    <select 
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white"
-                      onChange={(e) => {
-                        const scenario = buildScenario(document.getElementById('scenarioB-player').value, e.target.value);
-                        setScenarioB(scenario);
-                      }}
-                      id="scenarioB-tournament"
-                    >
-                      <option value="">Select tournament...</option>
-                      {upcomingTournaments.map(t => (
-                        <option key={t.name} value={t.name}>
-                          {t.name} ({t.type}) - ${t.purse}M {t.multiplier > 1 ? `x${t.multiplier}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {scenarioB && (
-                    <div className="mt-6 p-4 bg-slate-800/60 rounded-lg border border-purple-500/30">
-                      <div className="text-sm space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Effective Purse:</span>
-                          <span className="font-bold text-purple-400">${scenarioB.effectivePurse.toFixed(1)}M</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Win Odds:</span>
-                          <span className="font-semibold">{scenarioB.player.winOdds}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Expected Value:</span>
-                          <span className="font-bold text-emerald-400">${(scenarioB.expectedValue / 1000000).toFixed(2)}M</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+            <p className="text-slate-400 mb-6">Compare player allocation strategies - Work in progress. More features coming soon!</p>
+            
+            <div className="bg-slate-800/50 rounded-xl p-8 text-center">
+              <p className="text-slate-400">Scenario modeling functionality will be available in the next update.</p>
             </div>
+          </div>
+        </div>
+      )}
 
-            {/* Comparison Result */}
-            {scenarioA && scenarioB && (
-              <div className="glass rounded-xl p-6 border-2 border-emerald-500/50">
-                <h3 className="text-2xl font-bold mb-4 text-emerald-400">COMPARISON RESULTS</h3>
-                <div className="grid md:grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <div className="text-slate-400 text-sm mb-2">Expected Value Difference</div>
-                    <div className={`text-3xl font-bold ${
-                      scenarioA.expectedValue > scenarioB.expectedValue ? 'text-blue-400' : 'text-purple-400'
-                    }`}>
-                      ${Math.abs((scenarioA.expectedValue - scenarioB.expectedValue) / 1000000).toFixed(2)}M
-                    </div>
-                    <div className="text-sm text-slate-400 mt-1">
-                      {scenarioA.expectedValue > scenarioB.expectedValue ? 'Scenario A higher' : 'Scenario B higher'}
-                    </div>
-                  </div>
-
-                  <div className="text-center">
-                    <div className="text-slate-400 text-sm mb-2">Opportunity Cost</div>
-                    <div className="text-2xl font-bold text-yellow-400">
-                      {((Math.abs(scenarioA.expectedValue - scenarioB.expectedValue) / Math.max(scenarioA.expectedValue, scenarioB.expectedValue)) * 100).toFixed(1)}%
-                    </div>
-                    <div className="text-sm text-slate-400 mt-1">
-                      Potential upside difference
-                    </div>
-                  </div>
-
-                  <div className="text-center">
-                    <div className="text-slate-400 text-sm mb-2">Recommendation</div>
-                    <div className={`text-xl font-bold ${
-                      scenarioA.expectedValue > scenarioB.expectedValue ? 'text-blue-400' : 'text-purple-400'
-                    }`}>
-                      {scenarioA.expectedValue > scenarioB.expectedValue ? 'Choose Scenario A' : 'Choose Scenario B'}
-                    </div>
-                    <div className="text-sm text-slate-400 mt-1">
-                      Based on expected value
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 p-4 bg-yellow-950/30 border border-yellow-500/30 rounded-lg">
-                  <div className="font-semibold text-yellow-400 mb-2">💡 Strategic Notes</div>
-                  <div className="text-sm space-y-2">
-                    {scenarioA.tournament.multiplier > 1 && (
-                      <div>• {scenarioA.player.name} at {scenarioA.tournament.name} benefits from {scenarioA.tournament.multiplier}x multiplier (Major)</div>
-                    )}
-                    {scenarioB.tournament.multiplier > 1 && (
-                      <div>• {scenarioB.player.name} at {scenarioB.tournament.name} benefits from {scenarioB.tournament.multiplier}x multiplier (Major)</div>
-                    )}
-                    {scenarioA.player.tier === "Elite" && scenarioA.tournament.multiplier === 1.0 && (
-                      <div>• ⚠️ Using elite player {scenarioA.player.name} at non-major - consider saving</div>
-                    )}
-                    {scenarioB.player.tier === "Elite" && scenarioB.tournament.multiplier === 1.0 && (
-                      <div>• ⚠️ Using elite player {scenarioB.player.name} at non-major - consider saving</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Quick Scenarios */}
-            <div className="mt-8">
-              <h3 className="text-xl font-bold mb-4 text-slate-300">QUICK COMPARISONS</h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                <button
-                  onClick={() => {
-                    document.getElementById('scenarioA-player').value = 'Scottie Scheffler';
-                    document.getElementById('scenarioA-tournament').value = 'AT&T Pebble Beach';
-                    document.getElementById('scenarioB-player').value = 'Scottie Scheffler';
-                    document.getElementById('scenarioB-tournament').value = 'The Masters';
-                    setScenarioA(buildScenario('Scottie Scheffler', 'AT&T Pebble Beach'));
-                    setScenarioB(buildScenario('Scottie Scheffler', 'The Masters'));
-                  }}
-                  className="glass p-4 rounded-xl hover:bg-slate-800/50 transition-all text-left border border-slate-700 hover:border-emerald-500/50"
-                >
-                  <div className="font-semibold mb-1">Scheffler: Pebble vs Masters</div>
-                  <div className="text-sm text-slate-400">Should you use him now or save for major?</div>
-                </button>
-
-                <button
-                  onClick={() => {
-                    document.getElementById('scenarioA-player').value = 'Russell Henley';
-                    document.getElementById('scenarioA-tournament').value = 'AT&T Pebble Beach';
-                    document.getElementById('scenarioB-player').value = 'Collin Morikawa';
-                    document.getElementById('scenarioB-tournament').value = 'AT&T Pebble Beach';
-                    setScenarioA(buildScenario('Russell Henley', 'AT&T Pebble Beach'));
-                    setScenarioB(buildScenario('Collin Morikawa', 'AT&T Pebble Beach'));
-                  }}
-                  className="glass p-4 rounded-xl hover:bg-slate-800/50 transition-all text-left border border-slate-700 hover:border-emerald-500/50"
-                >
-                  <div className="font-semibold mb-1">Henley vs Morikawa at Pebble</div>
-                  <div className="text-sm text-slate-400">Which Tier 2 for this week?</div>
-                </button>
-
-                <button
-                  onClick={() => {
-                    document.getElementById('scenarioA-player').value = 'Xander Schauffele';
-                    document.getElementById('scenarioA-tournament').value = 'Players Championship';
-                    document.getElementById('scenarioB-player').value = 'Xander Schauffele';
-                    document.getElementById('scenarioB-tournament').value = 'PGA Championship';
-                    setScenarioA(buildScenario('Xander Schauffele', 'Players Championship'));
-                    setScenarioB(buildScenario('Xander Schauffele', 'PGA Championship'));
-                  }}
-                  className="glass p-4 rounded-xl hover:bg-slate-800/50 transition-all text-left border border-slate-700 hover:border-emerald-500/50"
-                >
-                  <div className="font-semibold mb-1">Xander: Players vs PGA</div>
-                  <div className="text-sm text-slate-400">$25M purse vs $27.75M effective purse</div>
-                </button>
-
-                <button
-                  onClick={() => {
-                    document.getElementById('scenarioA-player').value = 'Patrick Cantlay';
-                    document.getElementById('scenarioA-tournament').value = 'AT&T Pebble Beach';
-                    document.getElementById('scenarioB-player').value = 'Patrick Cantlay';
-                    document.getElementById('scenarioB-tournament').value = 'Memorial Tournament';
-                    setScenarioA(buildScenario('Patrick Cantlay', 'AT&T Pebble Beach'));
-                    setScenarioB(buildScenario('Patrick Cantlay', 'Memorial Tournament'));
-                  }}
-                  className="glass p-4 rounded-xl hover:bg-slate-800/50 transition-all text-left border border-slate-700 hover:border-emerald-500/50"
-                >
-                  <div className="font-semibold mb-1">Cantlay: Now vs Later</div>
-                  <div className="text-sm text-slate-400">Both $20M signature events</div>
-                </button>
-              </div>
+      {/* OTHER TABS - Placeholders */}
+      {activeTab !== 'weekly' && activeTab !== 'scenario' && (
+        <div className="max-w-7xl mx-auto">
+          <div className="glass rounded-2xl p-6">
+            <h2 className="text-3xl mb-2 text-emerald-400 capitalize">{activeTab}</h2>
+            <p className="text-slate-400 mb-6">This feature is coming soon!</p>
+            
+            <div className="bg-slate-800/50 rounded-xl p-8 text-center">
+              <p className="text-slate-400">Features 2-6 will be built out after deployment.</p>
             </div>
           </div>
         </div>
