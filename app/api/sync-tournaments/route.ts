@@ -24,7 +24,7 @@ const SEASON_SCHEDULE = [
   { key: 'Travelers', week: 19, segment: 'Q3' },
   { key: 'John Deere', week: 20, segment: 'Q3' },
   { key: 'Scottish Open', week: 21, segment: 'Q3' },
-  { key: 'Open Championship', week: 22, segment: 'Q3', multiplier: 1.5 }, // British Open
+  { key: 'Open Championship', week: 22, segment: 'Q3', multiplier: 1.5 },
   { key: '3M Open', week: 23, segment: 'Q3' },
   { key: 'Rocket Mortgage', week: 24, segment: 'Q3' },
   { key: 'Wyndham', week: 25, segment: 'Q3' },
@@ -36,7 +36,7 @@ const SEASON_SCHEDULE = [
 function fuzzyMatch(dgName: string, searchKey: string): boolean {
   const dgLower = dgName.toLowerCase();
   const keyLower = searchKey.toLowerCase();
-  return dgLower.includes(keyLower) || keyLower.includes(dgLower.split(' ')[0]);
+  return dgLower.includes(keyLower);
 }
 
 export async function POST() {
@@ -51,22 +51,27 @@ export async function POST() {
     
     const data = await response.json();
     
-    // Clear existing tournaments
-    await query('DELETE FROM tournaments WHERE season = 2026');
+    // Clear existing tournaments completely
+    await query('TRUNCATE TABLE tournaments CASCADE');
     
     let count = 0;
     let notFound: string[] = [];
+    const processedIds = new Set<string>();
     
     for (const scheduleEvent of SEASON_SCHEDULE) {
       // Find matching tournament in DataGolf feed using fuzzy matching
-      const dgEvent = data.schedule.find((e: any) => 
-        fuzzyMatch(e.event_name || '', scheduleEvent.key)
-      );
+      const dgEvent = data.schedule.find((e: any) => {
+        const eventId = e.calendar_key || e.event_id;
+        return !processedIds.has(eventId) && fuzzyMatch(e.event_name || '', scheduleEvent.key);
+      });
       
       if (!dgEvent) {
         notFound.push(scheduleEvent.key);
         continue;
       }
+      
+      const eventId = dgEvent.calendar_key || dgEvent.event_id;
+      processedIds.add(eventId);
       
       const multiplier = scheduleEvent.multiplier || 1.0;
       
@@ -83,7 +88,7 @@ export async function POST() {
           segment, event_type, tour, winner, is_completed, week_number
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
         [
-          dgEvent.calendar_key || dgEvent.event_id,
+          eventId,
           dgEvent.event_id,
           dgEvent.event_name,
           dgEvent.course_name || dgEvent.course,
