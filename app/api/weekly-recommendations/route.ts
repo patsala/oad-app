@@ -22,6 +22,7 @@ interface PlayerRecommendation {
   reasoning: string;
   strategic_note?: string;
   narrative?: string;
+  ev?: number;
 }
 
 function parseOdds(oddsString: string | undefined): number | undefined {
@@ -79,12 +80,12 @@ export async function GET() {
     
     // Get upcoming majors
     const upcomingMajors = await query(
-        `SELECT event_name as name, week_number as week, 
-                CEIL((DATE(start_date) - DATE($1)) / 7.0) as weeks_away
-        FROM tournaments 
-        WHERE event_type = 'Major' AND start_date > $1
-        ORDER BY start_date ASC`,
-        [tournament.start_date]
+      `SELECT event_name as name, week_number as week, 
+              CEIL((DATE(start_date) - DATE($1)) / 7.0) as weeks_away
+       FROM tournaments 
+       WHERE event_type = 'Major' AND start_date > $1
+       ORDER BY start_date ASC`,
+      [tournament.start_date]
     );
     
     // Fetch field, odds, probabilities, and DFS salaries
@@ -168,66 +169,88 @@ export async function GET() {
       .filter(r => !r.is_used)
       .slice(0, 30);
     
-  // Generate AI-powered recommendation tiers for all top players in ONE batch call
-const recommendations: PlayerRecommendation[] = [];
-
-try {
-  const recResponse = await fetch('https://oad-app.vercel.app/api/generate-recommendation-tier', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      players: topByEV,
-      tournament: {
-        name: tournament.event_name,
-        event_type: tournament.event_type,
-        multiplier: tournament.multiplier,
-        segment: tournament.segment
-      },
-      segment_standings: segmentStandings,
-      used_players: usedPlayers,
-      upcoming_majors: upcomingMajors,
-      week_number: tournament.week_number
-    })
-  });
-  
-  if (recResponse.ok) {
-    const recData = await recResponse.json();
+    // Generate AI-powered recommendation tiers for all top players in ONE batch call
+    const recommendations: PlayerRecommendation[] = [];
     
-    // Merge AI recommendations
-    topByEV.forEach(player => {
-      const aiRec = recData.recommendations[player.dg_id] || { tier: 'PLAYABLE', reasoning: 'Analysis pending' };
-      recommendations.push({
-        ...player,
-        recommendation_score: player.ev,
-        recommendation_tier: aiRec.tier,
-        reasoning: aiRec.reasoning
+    try {
+      const recResponse = await fetch('https://oad-app.vercel.app/api/generate-recommendation-tier', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          players: topByEV,
+          tournament: {
+            name: tournament.event_name,
+            event_type: tournament.event_type,
+            multiplier: tournament.multiplier,
+            segment: tournament.segment
+          },
+          segment_standings: segmentStandings,
+          used_players: usedPlayers,
+          upcoming_majors: upcomingMajors,
+          week_number: tournament.week_number
+        })
       });
-    });
-  } else {
-    // Fallback
-    topByEV.forEach(player => {
-      recommendations.push({
-        ...player,
-        recommendation_score: player.ev,
-        recommendation_tier: 'PLAYABLE',
-        reasoning: 'Strategic analysis pending'
+      
+      if (recResponse.ok) {
+        const recData = await recResponse.json();
+        
+        // Merge AI recommendations
+        topByEV.forEach(player => {
+          const aiRec = recData.recommendations?.[player.dg_id] || { tier: 'PLAYABLE', reasoning: 'Analysis pending' };
+          recommendations.push({
+            ...player,
+            recommendation_score: player.ev,
+            recommendation_tier: aiRec.tier,
+            reasoning: aiRec.reasoning
+          });
+        });
+      } else {
+        // Fallback
+        topByEV.forEach(player => {
+          recommendations.push({
+            ...player,
+            recommendation_score: player.ev,
+            recommendation_tier: 'PLAYABLE',
+            reasoning: 'Strategic analysis pending'
+          });
+        });
+      }
+    } catch (error) {
+      console.error('Failed to generate AI recommendations:', error);
+      topByEV.forEach(player => {
+        recommendations.push({
+          ...player,
+          recommendation_score: player.ev,
+          recommendation_tier: 'PLAYABLE',
+          reasoning: 'Strategic analysis pending'
+        });
       });
-    });
-  }
-} catch (error) {
-  console.error('Failed to generate AI recommendations:', error);
-  topByEV.forEach(player => {
-    recommendations.push({
-      ...player,
-      recommendation_score: player.ev,
-      recommendation_tier: 'PLAYABLE',
-      reasoning: 'Strategic analysis pending'
-    });
-  });
-}
+    }
     
-    // Take top 20 for display
-    const finalRecs = recommendations.slice(0, 20);
+    // Generate narratives for top 20 recommendations
+    const top20 = recommendations.slice(0, 20);
+    
+    try {
+      const narrativeResponse = await fetch('https://oad-app.vercel.app/api/generate-narratives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          players: top20,
+          tournament: tournament.event_name
+        })
+      });
+      
+      if (narrativeResponse.ok) {
+        const narrativeData = await narrativeResponse.json();
+        
+        // Add narratives to recommendations
+        top20.forEach(rec => {
+          rec.narrative = narrativeData.narratives?.[rec.dg_id] || 'Analysis pending...';
+        });
+      }
+    } catch (error) {
+      console.error('Failed to generate narratives:', error);
+    }
     
     return NextResponse.json({
       tournament: {
@@ -238,7 +261,7 @@ try {
         segment: tournament.segment
       },
       next_major: upcomingMajors?.[0] || null,
-      top_picks: finalRecs,
+      top_picks: top20,
       total_in_field: preliminaryRecs.length
     });
     
