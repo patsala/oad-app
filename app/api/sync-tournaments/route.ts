@@ -1,42 +1,60 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/app/lib/db';
 
-// Your 28-event schedule - using key words for fuzzy matching
+// Your 28-event schedule - 7 events per segment
 const SEASON_SCHEDULE = [
-  { key: 'Pebble Beach', week: 1, segment: 'Q1' },
-  { key: 'Genesis Invitational', week: 2, segment: 'Q1' },
-  { key: 'Cognizant', week: 3, segment: 'Q1' },
-  { key: 'Arnold Palmer', week: 4, segment: 'Q1' },
-  { key: 'PLAYERS', week: 5, segment: 'Q1' },
-  { key: 'Valspar', week: 6, segment: 'Q1' },
-  { key: 'Houston Open', week: 7, segment: 'Q1' },
-  { key: 'Valero Texas', week: 8, segment: 'Q1' },
-  { key: 'Masters', week: 9, segment: 'Q2', multiplier: 1.5 },
-  { key: 'RBC Heritage', week: 10, segment: 'Q2' },
-  { key: 'Miami', week: 11, segment: 'Q2' },
-  { key: 'Truist', week: 12, segment: 'Q2' },
-  { key: 'PGA Championship', week: 13, segment: 'Q2', multiplier: 1.5 },
-  { key: 'CJ Cup', week: 14, segment: 'Q2' },
-  { key: 'Schwab Challenge', week: 15, segment: 'Q2' },
-  { key: 'Memorial', week: 16, segment: 'Q2' },
-  { key: 'Canadian Open', week: 17, segment: 'Q3' },
-  { key: 'U.S. Open', week: 18, segment: 'Q3', multiplier: 1.5 },
-  { key: 'Travelers', week: 19, segment: 'Q3' },
-  { key: 'John Deere', week: 20, segment: 'Q3' },
-  { key: 'Scottish Open', week: 21, segment: 'Q3' },
-  { key: 'Open Championship', week: 22, segment: 'Q3', multiplier: 1.5 },
-  { key: '3M Open', week: 23, segment: 'Q3' },
-  { key: 'Rocket', week: 24, segment: 'Q3' },
-  { key: 'Wyndham', week: 25, segment: 'Q3' },
-  { key: 'St. Jude', week: 26, segment: 'Q4' },
-  { key: 'BMW Championship', week: 27, segment: 'Q4' },
-  { key: 'TOUR Championship', week: 28, segment: 'Q4' },
+  // Q1 - 7 events
+  { key: 'Pebble Beach', week: 1, segment: 'Q1', purse: 20000000, type: 'Signature' },
+  { key: 'Genesis Invitational', week: 2, segment: 'Q1', purse: 20000000, type: 'Signature' },
+  { key: 'Cognizant', week: 3, segment: 'Q1', purse: 8600000, type: 'Regular' },
+  { key: 'Arnold Palmer', week: 4, segment: 'Q1', purse: 20000000, type: 'Signature' },
+  { key: 'PLAYERS', week: 5, segment: 'Q1', purse: 25000000, type: 'Signature' },
+  { key: 'Valspar', week: 6, segment: 'Q1', purse: 8600000, type: 'Regular' },
+  { key: 'Houston Open', week: 7, segment: 'Q1', purse: 9000000, type: 'Regular' },
+  
+  // Q2 - 7 events
+  { key: 'Valero Texas', week: 8, segment: 'Q2', purse: 9200000, type: 'Regular' },
+  { key: 'Masters', week: 9, segment: 'Q2', purse: 20000000, multiplier: 1.5, type: 'Major' },
+  { key: 'RBC Heritage', week: 10, segment: 'Q2', purse: 20000000, type: 'Signature' },
+  { key: 'Miami', week: 11, segment: 'Q2', purse: 8000000, type: 'Regular' },
+  { key: 'Truist', week: 12, segment: 'Q2', purse: 20000000, type: 'Signature' },
+  { key: 'PGA Championship', week: 13, segment: 'Q2', purse: 18500000, multiplier: 1.5, type: 'Major' },
+  { key: 'CJ Cup', week: 14, segment: 'Q2', purse: 9500000, type: 'Regular' },
+  
+  // Q3 - 7 events
+  { key: 'Schwab Challenge', week: 15, segment: 'Q3', purse: 9500000, type: 'Regular' },
+  { key: 'Memorial', week: 16, segment: 'Q3', purse: 20000000, type: 'Signature' },
+  { key: 'Canadian Open', week: 17, segment: 'Q3', purse: 9300000, type: 'Regular' },
+  { key: 'U.S. Open', week: 18, segment: 'Q3', purse: 21500000, multiplier: 1.5, type: 'Major' },
+  { key: 'Travelers', week: 19, segment: 'Q3', purse: 20000000, type: 'Signature' },
+  { key: 'John Deere', week: 20, segment: 'Q3', purse: 8000000, type: 'Regular' },
+  { key: 'Scottish Open', week: 21, segment: 'Q3', purse: 9000000, type: 'Regular' },
+  
+  // Q4 - 7 events
+  { key: 'Open Championship', week: 22, segment: 'Q4', purse: 17000000, multiplier: 1.5, type: 'Major' },
+  { key: '3M Open', week: 23, segment: 'Q4', purse: 8000000, type: 'Regular' },
+  { key: 'Rocket', week: 24, segment: 'Q4', purse: 8400000, type: 'Regular' },
+  { key: 'Wyndham', week: 25, segment: 'Q4', purse: 7600000, type: 'Regular' },
+  { key: 'St. Jude', week: 26, segment: 'Q4', purse: 20000000, type: 'Signature' },
+  { key: 'BMW Championship', week: 27, segment: 'Q4', purse: 20000000, type: 'Signature' },
+  { key: 'TOUR Championship', week: 28, segment: 'Q4', purse: 28500000, type: 'Signature' },
 ];
 
 function fuzzyMatch(dgName: string, searchKey: string): boolean {
   const dgLower = dgName.toLowerCase();
   const keyLower = searchKey.toLowerCase();
   return dgLower.includes(keyLower);
+}
+
+function parseCity(location: string): string {
+  // "Honolulu, HI" -> "Honolulu"
+  return location.split(',')[0].trim();
+}
+
+function calculateEndDate(startDate: string): string {
+  const start = new Date(startDate);
+  start.setDate(start.getDate() + 3); // Tournaments are 4 days (Thu-Sun)
+  return start.toISOString().split('T')[0];
 }
 
 export async function POST() {
@@ -61,7 +79,7 @@ export async function POST() {
     for (const scheduleEvent of SEASON_SCHEDULE) {
       // Find matching tournament in DataGolf feed using fuzzy matching
       const dgEvent = data.schedule.find((e: any) => {
-        const eventId = e.calendar_key || e.event_id;
+        const eventId = e.event_id;
         return !processedIds.has(eventId) && fuzzyMatch(e.event_name || '', scheduleEvent.key);
       });
       
@@ -70,15 +88,15 @@ export async function POST() {
         continue;
       }
       
-      const eventId = dgEvent.calendar_key || dgEvent.event_id;
+      const eventId = dgEvent.event_id;
       processedIds.add(eventId);
       
       const multiplier = scheduleEvent.multiplier || 1.0;
-      
-      // Determine event type
-      let eventType = 'Regular';
-      if (multiplier === 1.5) eventType = 'Major';
-      else if (dgEvent.purse >= 20000000) eventType = 'Signature';
+      const purse = scheduleEvent.purse;
+      const eventType = scheduleEvent.type;
+      const isCompleted = dgEvent.status === 'completed';
+      const city = parseCity(dgEvent.location || '');
+      const endDate = calculateEndDate(dgEvent.start_date);
       
       await query(
         `INSERT INTO tournaments (
@@ -91,22 +109,22 @@ export async function POST() {
           eventId,
           dgEvent.event_id,
           dgEvent.event_name,
-          dgEvent.course_name || dgEvent.course,
-          dgEvent.course_key || dgEvent.course_id,
-          dgEvent.city,
+          dgEvent.course,
+          dgEvent.course_key,
+          city,
           dgEvent.country,
-          dgEvent.lat,
-          dgEvent.lon,
+          dgEvent.latitude,
+          dgEvent.longitude,
           dgEvent.start_date,
-          dgEvent.end_date,
+          endDate,
           2026,
-          dgEvent.purse || 0,
+          purse,
           multiplier,
           scheduleEvent.segment,
           eventType,
           'pga',
           dgEvent.winner,
-          dgEvent.event_completed === true || dgEvent.winner !== null,
+          isCompleted,
           scheduleEvent.week
         ]
       );
@@ -117,7 +135,13 @@ export async function POST() {
       success: true, 
       count,
       notFound: notFound.length > 0 ? notFound : undefined,
-      message: `Synced ${count} of ${SEASON_SCHEDULE.length} scheduled tournaments`
+      message: `Synced ${count} tournaments - 7 per segment (Q1-Q4)`,
+      breakdown: {
+        Q1: SEASON_SCHEDULE.filter(e => e.segment === 'Q1').length,
+        Q2: SEASON_SCHEDULE.filter(e => e.segment === 'Q2').length,
+        Q3: SEASON_SCHEDULE.filter(e => e.segment === 'Q3').length,
+        Q4: SEASON_SCHEDULE.filter(e => e.segment === 'Q4').length,
+      }
     });
   } catch (error) {
     console.error('Sync error:', error);
