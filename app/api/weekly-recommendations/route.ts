@@ -230,30 +230,8 @@ export async function GET() {
       });
     }
     
-    // Generate narratives for top 20 recommendations
+    // Return top 20 WITHOUT narratives (narratives generated on-demand by user)
     const top20 = recommendations.slice(0, 20);
-    
-    try {
-      const narrativeResponse = await fetch('https://oad-app.vercel.app/api/generate-narratives', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          players: top20,
-          tournament: tournament.event_name
-        })
-      });
-      
-      if (narrativeResponse.ok) {
-        const narrativeData = await narrativeResponse.json();
-        
-        // Add narratives to recommendations
-        top20.forEach(rec => {
-          rec.narrative = narrativeData.narratives?.[rec.dg_id] || 'Analysis pending...';
-        });
-      }
-    } catch (error) {
-      console.error('Failed to generate narratives:', error);
-    }
     
     return NextResponse.json({
       tournament: {
