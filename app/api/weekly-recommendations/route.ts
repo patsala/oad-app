@@ -168,7 +168,9 @@ export async function GET() {
       .filter(r => !r.is_used)
       .slice(0, 30);
     
-   // Generate AI-powered recommendation tiers for all top players in ONE batch call
+  // Generate AI-powered recommendation tiers for all top players in ONE batch call
+const recommendations: PlayerRecommendation[] = [];
+
 try {
   const recResponse = await fetch('https://oad-app.vercel.app/api/generate-recommendation-tier', {
     method: 'POST',
