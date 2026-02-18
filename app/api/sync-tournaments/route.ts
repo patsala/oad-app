@@ -26,7 +26,7 @@ const SEASON_SCHEDULE = [
   { key: 'Scottish Open', week: 21, segment: 'Q3' },
   { key: 'Open Championship', week: 22, segment: 'Q3', multiplier: 1.5 },
   { key: '3M Open', week: 23, segment: 'Q3' },
-  { key: 'Rocket Mortgage', week: 24, segment: 'Q3' },
+  { key: 'Rocket', week: 24, segment: 'Q3' },
   { key: 'Wyndham', week: 25, segment: 'Q3' },
   { key: 'St. Jude', week: 26, segment: 'Q4' },
   { key: 'BMW Championship', week: 27, segment: 'Q4' },
