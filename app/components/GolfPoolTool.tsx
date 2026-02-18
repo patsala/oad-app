@@ -1,6 +1,3 @@
-import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Trophy, DollarSign, Target, Cloud, Wind, Droplets, ChevronDown, ChevronUp, Star, Clock, Calendar, Users } from 'lucide-react';
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -38,14 +35,9 @@ const GolfPoolTool = () => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [showComparison, setShowComparison] = useState(false);
   const [comparisonPlayers, setComparisonPlayers] = useState<Player[]>([]);
-
-
-const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-const [showComparison, setShowComparison] = useState(false);
-const [comparisonPlayers, setComparisonPlayers] = useState<Player[]>([]);
-const [activeTab, setActiveTab] = useState('weekly');
-const [scenarioA, setScenarioA] = useState<any>(null);
-const [scenarioB, setScenarioB] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('weekly');
+  const [scenarioA, setScenarioA] = useState<any>(null);
+  const [scenarioB, setScenarioB] = useState<any>(null);
 
   // Pebble Beach tournament data
   const tournamentInfo = {
