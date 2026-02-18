@@ -1,13 +1,51 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Trophy, DollarSign, Target, Cloud, Wind, Droplets, ChevronDown, ChevronUp, Star, Clock, Calendar, Users } from 'lucide-react';
 
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { TrendingUp, TrendingDown, Trophy, DollarSign, Target, Cloud, Wind, Droplets, ChevronDown, ChevronUp, Star, Clock, Calendar, Users } from 'lucide-react';
+
+// Add these type definitions:
+interface Player {
+  name: string;
+  tier: string;
+  winOdds: string;
+  top5Odds: string;
+  top10Odds: string;
+  dkSalary: string;
+  fdSalary: string;
+  courseHistory: string;
+  recentForm: string;
+  strengths: string[];
+  concerns: string[];
+  pebbleNotes: string;
+  recommendation: string;
+  reasoning: string;
+}
+
+interface Tournament {
+  name: string;
+  purse: number;
+  multiplier: number;
+  segment: string;
+  type: string;
+  date: string;
+  note?: string;
+}
+
 const GolfPoolTool = () => {
-  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [showComparison, setShowComparison] = useState(false);
-  const [comparisonPlayers, setComparisonPlayers] = useState([]);
-  const [activeTab, setActiveTab] = useState('weekly'); // 'weekly', 'scenario', 'roster', 'schedule', 'calculator', 'stats'
-  const [scenarioA, setScenarioA] = useState(null);
-  const [scenarioB, setScenarioB] = useState(null);
+  const [comparisonPlayers, setComparisonPlayers] = useState<Player[]>([]);
+
+
+const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+const [showComparison, setShowComparison] = useState(false);
+const [comparisonPlayers, setComparisonPlayers] = useState<Player[]>([]);
+const [activeTab, setActiveTab] = useState('weekly');
+const [scenarioA, setScenarioA] = useState<any>(null);
+const [scenarioB, setScenarioB] = useState<any>(null);
 
   // Pebble Beach tournament data
   const tournamentInfo = {
