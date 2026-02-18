@@ -881,31 +881,31 @@ const GolfPoolTool = () => {
   {rec.enrichment && (
     <div className="flex flex-wrap gap-2">
       {rec.enrichment.sg_total && (
-        <div className="px-2 py-1 bg-emerald-500/20 border border-emerald-500/50 rounded text-xs">
-          <span className="text-emerald-400 font-bold">
-            {rec.enrichment.sg_total > 0 ? '+' : ''}{rec.enrichment.sg_total.toFixed(2)}
-          </span>
-          <span className="text-slate-400 ml-1">SG Total</span>
-        </div>
-      )}
+  <div className="px-2 py-1 bg-emerald-500/20 border border-emerald-500/50 rounded text-xs">
+    <span className="text-emerald-400 font-bold">
+      {Number(rec.enrichment.sg_total) > 0 ? '+' : ''}{Number(rec.enrichment.sg_total).toFixed(2)}
+    </span>
+    <span className="text-slate-400 ml-1">SG Total</span>
+  </div>
+)}
       
       {/* Elite Skill Badges */}
-      {rec.enrichment.sg_putt > 0.4 && (
+      {Number(rec.enrichment.sg_putt) > 0.4 && (
         <div className="px-2 py-1 bg-purple-500/20 border border-purple-500/50 rounded text-xs text-purple-300">
           ⛳ Elite Putter
         </div>
       )}
-      {rec.enrichment.sg_app > 0.8 && (
+      {Number(rec.enrichment.sg_app) > 0.8 && (
         <div className="px-2 py-1 bg-blue-500/20 border border-blue-500/50 rounded text-xs text-blue-300">
           🎯 Elite Irons
         </div>
       )}
-      {rec.enrichment.sg_ott > 0.6 && (
+      {Number(rec.enrichment.sg_ott) > 0.6 && (
         <div className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/50 rounded text-xs text-yellow-300">
           💪 Elite Driver
         </div>
       )}
-      {rec.enrichment.driving_dist > 10 && (
+      {Number(rec.enrichment.driving_dist) > 10 && (
         <div className="px-2 py-1 bg-red-500/20 border border-red-500/50 rounded text-xs text-red-300">
           🚀 Bomber
         </div>
@@ -914,12 +914,12 @@ const GolfPoolTool = () => {
       {/* Course Fit Indicator */}
       {rec.enrichment.course_history_adj && Math.abs(rec.enrichment.course_history_adj) > 0.05 && (
         <div className={`px-2 py-1 rounded text-xs ${
-          rec.enrichment.course_history_adj > 0 
+          Number(rec.enrichment.course_history_adj) > 0 
             ? 'bg-green-500/20 border border-green-500/50 text-green-300'
             : 'bg-orange-500/20 border border-orange-500/50 text-orange-300'
         }`}>
-          {rec.enrichment.course_history_adj > 0 ? '📈' : '📉'} Course History{' '}
-          {rec.enrichment.course_history_adj > 0 ? '+' : ''}{(rec.enrichment.course_history_adj * 100).toFixed(1)}%
+          {Number(rec.enrichment.course_history_adj) > 0 ? '📈' : '📉'} Course History{' '}
+          {Number(rec.enrichment.course_history_adj) > 0 ? '+' : ''}{(Number(rec.enrichment.course_history_adj) * 100).toFixed(1)}%
         </div>
       )}
     </div>
@@ -934,26 +934,26 @@ const GolfPoolTool = () => {
       <div className="mt-2 grid grid-cols-4 gap-2 p-2 bg-slate-900/40 rounded">
         <div>
           <div className="text-slate-500">SG: OTT</div>
-          <div className={rec.enrichment.sg_ott > 0 ? 'text-green-400' : 'text-red-400'}>
-            {rec.enrichment.sg_ott > 0 ? '+' : ''}{rec.enrichment.sg_ott?.toFixed(2)}
+          <div className={Number(rec.enrichment.sg_ott) > 0 ? 'text-green-400' : 'text-red-400'}>
+            {Number(rec.enrichment.sg_ott) > 0 ? '+' : ''}{Number(rec.enrichment.sg_ott)?.toFixed(2)}
           </div>
         </div>
         <div>
           <div className="text-slate-500">SG: Approach</div>
-          <div className={rec.enrichment.sg_app > 0 ? 'text-green-400' : 'text-red-400'}>
-            {rec.enrichment.sg_app > 0 ? '+' : ''}{rec.enrichment.sg_app?.toFixed(2)}
+          <div className={Number(rec.enrichment.sg_app) > 0 ? 'text-green-400' : 'text-red-400'}>
+            {Number(rec.enrichment.sg_app) > 0 ? '+' : ''}{Number(rec.enrichment.sg_app)?.toFixed(2)}
           </div>
         </div>
         <div>
           <div className="text-slate-500">SG: ARG</div>
-          <div className={rec.enrichment.sg_arg > 0 ? 'text-green-400' : 'text-red-400'}>
-            {rec.enrichment.sg_arg > 0 ? '+' : ''}{rec.enrichment.sg_arg?.toFixed(2)}
+          <div className={Number(rec.enrichment.sg_arg) > 0 ? 'text-green-400' : 'text-red-400'}>
+            {Number(rec.enrichment.sg_arg) > 0 ? '+' : ''}{Number(rec.enrichment.sg_arg)?.toFixed(2)}
           </div>
         </div>
         <div>
           <div className="text-slate-500">SG: Putt</div>
           <div className={rec.enrichment.sg_putt > 0 ? 'text-green-400' : 'text-red-400'}>
-            {rec.enrichment.sg_putt > 0 ? '+' : ''}{rec.enrichment.sg_putt?.toFixed(2)}
+            {Number(rec.enrichment.sg_putt) > 0 ? '+' : ''}{Number(rec.enrichment.sg_putt)?.toFixed(2)}
           </div>
         </div>
       </div>
