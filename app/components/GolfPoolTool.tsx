@@ -43,6 +43,7 @@ interface Pick {
 interface SegmentStanding {
   segment: string;
   total_earnings: number;
+  season_total_earnings: number;
   events_completed: number;
   best_finish: number | null;
 }
@@ -368,21 +369,35 @@ const GolfPoolTool = () => {
       </div>
 
       {/* Segment Standings Bar */}
-      {segmentStandings.length > 0 && (
-        <div className="max-w-7xl mx-auto mb-6 glass rounded-xl p-4 flex gap-4">
-          {segmentStandings.map((standing) => (
-            <div key={standing.segment} className="flex-1 text-center">
-              <div className="text-xs text-slate-400">{standing.segment}</div>
-              <div className="text-2xl font-bold text-emerald-400">
-                ${(standing.total_earnings || 0).toLocaleString()}
-              </div>
-              <div className="text-xs text-slate-500">
-                {standing.events_completed}/7 events
-              </div>
-            </div>
-          ))}
+{segmentStandings.length > 0 && (
+  <div className="max-w-7xl mx-auto mb-6 space-y-4">
+    {/* Season Total */}
+    <div className="glass rounded-xl p-4 text-center">
+      <div className="text-sm text-slate-400">Season Total</div>
+      <div className="text-4xl font-bold text-emerald-400">
+        ${(segmentStandings[0]?.season_total_earnings || 0).toLocaleString()}
+      </div>
+      <div className="text-xs text-slate-500 mt-1">
+        {segmentStandings.reduce((sum, s) => sum + s.events_completed, 0)}/28 events
+      </div>
+    </div>
+
+    {/* Segment Breakdown */}
+    <div className="glass rounded-xl p-4 flex gap-4">
+      {segmentStandings.map((standing) => (
+        <div key={standing.segment} className="flex-1 text-center">
+          <div className="text-xs text-slate-400">{standing.segment}</div>
+          <div className="text-2xl font-bold text-emerald-400">
+            ${(standing.total_earnings || 0).toLocaleString()}
+          </div>
+          <div className="text-xs text-slate-500">
+            {standing.events_completed}/7 events
+          </div>
         </div>
-      )}
+      ))}
+    </div>
+  </div>
+)}
 
       {/* Tab Navigation */}
       <div className="max-w-7xl mx-auto mb-6 animate-slide-in" style={{animationDelay: '0.05s'}}>
