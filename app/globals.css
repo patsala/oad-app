@@ -7,3 +7,7 @@
   --masters-dark: #00382a;
   --masters-yellow: #FED141;
 }
+
+body {
+  background-color: #ffffff;
+}

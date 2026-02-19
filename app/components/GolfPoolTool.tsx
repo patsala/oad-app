@@ -671,14 +671,14 @@ const GolfPoolTool = () => {
 
   if (loadingTournament) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-masters-darker via-masters-dark to-masters-green text-green-50 flex items-center justify-center">
-        <div className="text-2xl text-masters-yellow">Loading tournament data...</div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-2xl text-masters-green">Loading tournament data...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-masters-darker via-masters-dark to-masters-green text-green-50 p-6">
+    <div className="min-h-screen bg-white border-t-4 border-masters-green">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -692,13 +692,13 @@ const GolfPoolTool = () => {
         }
 
         .glass {
-          background: rgba(0, 55, 42, 0.5);
+          background: rgba(0, 55, 42, 0.85);
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(254, 209, 65, 0.1);
+          border: 1px solid rgba(254, 209, 65, 0.15);
         }
 
         .glow {
-          box-shadow: 0 0 30px rgba(254, 209, 65, 0.1);
+          box-shadow: 0 4px 20px rgba(0, 56, 42, 0.15);
         }
 
         @keyframes slideIn {
@@ -718,11 +718,11 @@ const GolfPoolTool = () => {
       `}</style>
 
       {/* Header */}
-      <div className="max-w-7xl mx-auto mb-8 animate-slide-in">
-        <h1 className="text-6xl mb-2 bg-gradient-to-r from-masters-yellow to-masters-gold bg-clip-text text-transparent">
+      <div className="max-w-7xl mx-auto mb-8 animate-slide-in pt-2">
+        <h1 className="text-6xl mb-2 text-masters-dark">
           Pimento Command Center
         </h1>
-        <p className="text-green-200/60 text-lg">One & Done Earnings Pool • 171 Entries • $25,650 Pot</p>
+        <p className="text-masters-green/60 text-lg">One & Done Earnings Pool • 171 Entries • $25,650 Pot</p>
       </div>
 
       {/* Segment Standings Bar */}
@@ -939,15 +939,15 @@ const GolfPoolTool = () => {
           <div className="max-w-7xl mx-auto mb-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-3xl text-masters-yellow">TOP PICKS BY EXPECTED VALUE</h3>
-                <p className="text-sm text-green-300/40">
+                <h3 className="text-3xl text-masters-dark">TOP PICKS BY EXPECTED VALUE</h3>
+                <p className="text-sm text-masters-green/50">
                   Live odds & probabilities • DataGolf analysis • Click to generate AI insights
                 </p>
               </div>
               <button
                 onClick={loadRecommendations}
                 disabled={loadingRecommendations}
-                className="px-4 py-2 bg-masters-green/20 hover:bg-masters-green/30 rounded-lg text-sm transition-all"
+                className="px-4 py-2 bg-masters-green text-white hover:bg-masters-dark rounded-lg text-sm transition-all"
               >
                 {loadingRecommendations ? 'Updating...' : 'Refresh Data'}
               </button>
@@ -1282,7 +1282,7 @@ const GolfPoolTool = () => {
       )}
 
       {/* Footer */}
-      <div className="max-w-7xl mx-auto mt-8 text-center text-green-200/30 text-sm">
+      <div className="max-w-7xl mx-auto mt-8 pb-6 text-center text-masters-green/40 text-sm">
         <p>Live data powered by DataGolf • AI analysis by Claude</p>
         {currentTournament && (
           <p className="mt-1">
