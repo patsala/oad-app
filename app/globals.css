@@ -1,3 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --masters-green: #006747;
+  --masters-dark: #00382a;
+  --masters-yellow: #FED141;
+}

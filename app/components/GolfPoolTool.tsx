@@ -166,11 +166,11 @@ const TournamentFieldTab = () => {
   const SortHeader = ({ label, sortKey, className = '' }: { label: string; sortKey: FieldSortKey; className?: string }) => (
     <button
       onClick={() => handleSort(sortKey)}
-      className={`text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1 ${className}`}
+      className={`text-xs text-green-300/40 hover:text-green-100 transition-colors flex items-center gap-1 ${className}`}
     >
       {label}
       {sortBy === sortKey && (
-        <span className="text-emerald-400">{sortAsc ? '▲' : '▼'}</span>
+        <span className="text-masters-yellow">{sortAsc ? '▲' : '▼'}</span>
       )}
     </button>
   );
@@ -178,7 +178,7 @@ const TournamentFieldTab = () => {
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto glass rounded-2xl p-12 text-center">
-        <div className="text-slate-400">Loading tournament field...</div>
+        <div className="text-green-200/60">Loading tournament field...</div>
       </div>
     );
   }
@@ -186,14 +186,14 @@ const TournamentFieldTab = () => {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="glass rounded-2xl p-6">
-        <h2 className="text-3xl mb-2 text-emerald-400">TOURNAMENT FIELD</h2>
-        <p className="text-slate-400 mb-4">{eventName}</p>
+        <h2 className="text-3xl mb-2 text-masters-yellow">TOURNAMENT FIELD</h2>
+        <p className="text-green-200/60 mb-4">{eventName}</p>
 
         {/* Table Header */}
-        <div className="bg-slate-800/70 rounded-lg px-4 py-2 flex items-center justify-between mb-2">
+        <div className="bg-masters-dark/70 rounded-lg px-4 py-2 flex items-center justify-between mb-2">
           <div className="flex items-center gap-4">
             <div className="w-8"></div>
-            <div className="text-xs text-slate-500">Player</div>
+            <div className="text-xs text-green-300/40">Player</div>
           </div>
           <div className="flex items-center gap-6">
             <div className="w-16 text-right hidden md:block"><SortHeader label="OWGR" sortKey="owgr" className="justify-end" /></div>
@@ -211,14 +211,14 @@ const TournamentFieldTab = () => {
             <div
               key={player.dg_id}
               className={`rounded-lg px-4 py-3 flex items-center justify-between transition-all ${
-                isUsed ? 'bg-slate-800/30 opacity-50' : 'bg-slate-800/50 hover:bg-slate-800/70'
+                isUsed ? 'bg-masters-dark/30 opacity-50' : 'bg-masters-dark/50 hover:bg-masters-dark/70'
               }`}
             >
               <div className="flex items-center gap-4">
-                <div className="text-slate-500 font-mono w-8 text-sm">{idx + 1}</div>
+                <div className="text-green-300/40 font-mono w-8 text-sm">{idx + 1}</div>
                 <div>
-                  <div className={`font-bold text-sm ${isUsed ? 'line-through text-slate-500' : ''}`}>{player.name}</div>
-                  <div className="text-xs text-slate-500">
+                  <div className={`font-bold text-sm ${isUsed ? 'line-through text-green-300/40' : ''}`}>{player.name}</div>
+                  <div className="text-xs text-green-300/40">
                     {player.country}
                     {isUsed && <span className="ml-2 text-amber-500/70">USED</span>}
                   </div>
@@ -229,7 +229,7 @@ const TournamentFieldTab = () => {
                   <div className="font-semibold text-sm">#{player.owgr || 'N/A'}</div>
                 </div>
                 <div className="w-20 text-right">
-                  <div className="font-semibold text-sm text-emerald-400">{formatOdds(player.win_odds)}</div>
+                  <div className="font-semibold text-sm text-masters-yellow">{formatOdds(player.win_odds)}</div>
                 </div>
                 <div className="w-16 text-right hidden md:block">
                   <div className="font-semibold text-sm">
@@ -282,45 +282,45 @@ const ScheduleTab = () => {
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto glass rounded-2xl p-12 text-center">
-        <div className="text-slate-400">Loading schedule...</div>
+        <div className="text-green-200/60">Loading schedule...</div>
       </div>
     );
   }
 
   const getSegmentColor = (segment: string) => {
     const colors: any = {
-      'Q1': 'bg-blue-500/20 border-blue-500/50',
-      'Q2': 'bg-green-500/20 border-green-500/50',
-      'Q3': 'bg-yellow-500/20 border-yellow-500/50',
-      'Q4': 'bg-purple-500/20 border-purple-500/50'
+      'Q1': 'bg-masters-green/20 border-masters-green/40',
+      'Q2': 'bg-green-700/20 border-green-600/40',
+      'Q3': 'bg-masters-yellow/10 border-masters-yellow/30',
+      'Q4': 'bg-masters-gold/10 border-masters-gold/30'
     };
-    return colors[segment] || 'bg-slate-500/20 border-slate-500/50';
+    return colors[segment] || 'bg-green-800/20 border-green-700/50';
   };
 
   return (
     <div className="max-w-7xl mx-auto">
       <div className="glass rounded-2xl p-6">
-        <h2 className="text-3xl mb-6 text-emerald-400">FULL SEASON SCHEDULE</h2>
+        <h2 className="text-3xl mb-6 text-masters-yellow">FULL SEASON SCHEDULE</h2>
         
         <div className="grid gap-4">
           {tournaments.map((tournament) => (
             <div 
               key={tournament.id}
               className={`rounded-lg p-4 border ${
-                tournament.is_completed ? 'bg-slate-800/30' : 'bg-slate-800/50'
+                tournament.is_completed ? 'bg-masters-dark/30' : 'bg-masters-dark/50'
               } ${getSegmentColor(tournament.segment)}`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-sm font-mono text-slate-400">
+                    <span className="text-sm font-mono text-green-200/60">
                       Week {tournament.week_number}
                     </span>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getSegmentColor(tournament.segment)}`}>
                       {tournament.segment}
                     </span>
                     {tournament.event_type === 'Major' && (
-                      <span className="px-2 py-0.5 bg-yellow-500/30 border border-yellow-500/50 rounded-full text-xs font-semibold text-yellow-300">
+                      <span className="px-2 py-0.5 bg-masters-azalea/20 border border-masters-azalea/40 rounded-full text-xs font-semibold text-masters-azalea">
                         MAJOR
                       </span>
                     )}
@@ -332,22 +332,22 @@ const ScheduleTab = () => {
                   </div>
                   
                   <h3 className="text-xl font-bold mb-1">{tournament.event_name}</h3>
-                  <p className="text-sm text-slate-400">
+                  <p className="text-sm text-green-200/60">
                     {tournament.course_name} • {tournament.city}, {tournament.country}
                   </p>
                   
                   {tournament.is_completed && tournament.winner && (
-                    <p className="text-sm text-emerald-400 mt-2">
+                    <p className="text-sm text-masters-yellow mt-2">
                       Winner: {tournament.winner}
                     </p>
                   )}
                 </div>
                 
                 <div className="text-right">
-                  <div className="text-sm text-slate-500">
+                  <div className="text-sm text-green-300/40">
                     {new Date(tournament.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </div>
-                  <div className="text-lg font-bold text-emerald-400">
+                  <div className="text-lg font-bold text-masters-yellow">
                     ${(tournament.purse / 1000000).toFixed(1)}M
                   </div>
                   {tournament.multiplier > 1 && (
@@ -639,21 +639,21 @@ const GolfPoolTool = () => {
   };
 
   const getTierColor = (tier: string) => {
-    if (tier.includes("Elite")) return "from-yellow-500/20 to-yellow-600/20 border-yellow-500/50";
-    if (tier === "Tier 1") return "from-blue-400/20 to-blue-500/20 border-blue-400/50";
-    if (tier === "Tier 2") return "from-blue-500/20 to-blue-600/20 border-blue-500/50";
-    return "from-gray-500/20 to-gray-600/20 border-gray-500/50";
+    if (tier.includes("Elite")) return "from-masters-yellow/15 to-masters-gold/10 border-masters-yellow/40";
+    if (tier === "Tier 1") return "from-masters-green/20 to-masters-dark/20 border-masters-green/40";
+    if (tier === "Tier 2") return "from-green-800/15 to-green-900/15 border-green-700/30";
+    return "from-green-900/10 to-green-950/10 border-green-800/20";
   };
 
   const getRecommendationColor = (rec: string) => {
-    if (rec.includes("USE NOW")) return "text-green-400";
-    if (rec.includes("TOP PICK")) return "text-green-400";
-    if (rec.includes("STRONG")) return "text-emerald-400";
-    if (rec.includes("SAVE")) return "text-purple-400";
-    if (rec.includes("VALUE")) return "text-cyan-400";
-    if (rec.includes("PLAYABLE")) return "text-yellow-400";
+    if (rec.includes("USE NOW")) return "text-masters-yellow";
+    if (rec.includes("TOP PICK")) return "text-masters-yellow";
+    if (rec.includes("STRONG")) return "text-green-400";
+    if (rec.includes("SAVE")) return "text-amber-400";
+    if (rec.includes("VALUE")) return "text-green-300";
+    if (rec.includes("PLAYABLE")) return "text-masters-gold";
     if (rec.includes("LONGSHOT")) return "text-orange-400";
-    return "text-slate-400";
+    return "text-green-200/60";
   };
 
   const getRecommendationIcon = (rec: string) => {
@@ -671,34 +671,34 @@ const GolfPoolTool = () => {
 
   if (loadingTournament) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 text-slate-100 flex items-center justify-center">
-        <div className="text-2xl">Loading tournament data...</div>
+      <div className="min-h-screen bg-gradient-to-br from-masters-darker via-masters-dark to-masters-green text-green-50 flex items-center justify-center">
+        <div className="text-2xl text-masters-yellow">Loading tournament data...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 text-slate-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-masters-darker via-masters-dark to-masters-green text-green-50 p-6">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
-        
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap');
+
         * {
           font-family: 'Inter', sans-serif;
         }
-        
+
         h1, h2, h3 {
-          font-family: 'Bebas Neue', sans-serif;
-          letter-spacing: 0.05em;
+          font-family: 'Playfair Display', serif;
+          letter-spacing: 0.02em;
         }
-        
+
         .glass {
-          background: rgba(15, 23, 42, 0.6);
+          background: rgba(0, 55, 42, 0.5);
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(148, 163, 184, 0.1);
+          border: 1px solid rgba(254, 209, 65, 0.1);
         }
-        
+
         .glow {
-          box-shadow: 0 0 30px rgba(16, 185, 129, 0.15);
+          box-shadow: 0 0 30px rgba(254, 209, 65, 0.1);
         }
 
         @keyframes slideIn {
@@ -719,10 +719,10 @@ const GolfPoolTool = () => {
 
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8 animate-slide-in">
-        <h1 className="text-6xl mb-2 bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-          PIMENTO COMMAND CENTER
+        <h1 className="text-6xl mb-2 bg-gradient-to-r from-masters-yellow to-masters-gold bg-clip-text text-transparent">
+          Pimento Command Center
         </h1>
-        <p className="text-slate-400 text-lg">One & Done Earnings Pool • 171 Entries • $25,650 Pot</p>
+        <p className="text-green-200/60 text-lg">One & Done Earnings Pool • 171 Entries • $25,650 Pot</p>
       </div>
 
       {/* Segment Standings Bar */}
@@ -730,11 +730,11 @@ const GolfPoolTool = () => {
         <div className="max-w-7xl mx-auto mb-6 space-y-4">
           {/* Season Total */}
           <div className="glass rounded-xl p-4 text-center">
-            <div className="text-sm text-slate-400">Season Total</div>
-            <div className="text-4xl font-bold text-emerald-400">
+            <div className="text-sm text-green-200/60">Season Total</div>
+            <div className="text-4xl font-bold text-masters-yellow">
               {formatDollar(segmentStandings[0]?.season_total_earnings || 0)}
             </div>
-            <div className="text-xs text-slate-500 mt-1">
+            <div className="text-xs text-green-300/40 mt-1">
               {segmentStandings.reduce((sum, s) => sum + s.events_completed, 0)}/28 events
             </div>
           </div>
@@ -743,11 +743,11 @@ const GolfPoolTool = () => {
           <div className="glass rounded-xl p-4 flex gap-4">
             {segmentStandings.map((standing) => (
               <div key={standing.segment} className="flex-1 text-center">
-                <div className="text-xs text-slate-400">{standing.segment}</div>
-                <div className="text-2xl font-bold text-emerald-400">
+                <div className="text-xs text-green-200/60">{standing.segment}</div>
+                <div className="text-2xl font-bold text-masters-yellow">
                   {formatDollar(standing.total_earnings || 0)}
                 </div>
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-green-300/40">
                   {standing.events_completed}/7 events
                 </div>
               </div>
@@ -772,8 +772,8 @@ const GolfPoolTool = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-all ${
                   activeTab === tab.id
-                    ? 'bg-emerald-500 text-white font-semibold'
-                    : 'bg-transparent text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                    ? 'bg-masters-green text-white font-semibold'
+                    : 'bg-transparent text-green-200/60 hover:bg-masters-dark/50 hover:text-green-100'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -792,14 +792,14 @@ const GolfPoolTool = () => {
             {currentPick ? (
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm text-slate-400 mb-1">
+                  <div className="text-sm text-green-200/60 mb-1">
                     YOUR PICK - WEEK {currentTournament.week_number}
                   </div>
                   <div className="flex items-center gap-3">
                     <CheckCircle className="w-8 h-8 text-green-400" />
                     <div>
-                      <div className="text-3xl font-bold text-emerald-400">{currentPick.player_name}</div>
-                      <div className="text-sm text-slate-400">
+                      <div className="text-3xl font-bold text-masters-yellow">{currentPick.player_name}</div>
+                      <div className="text-sm text-green-200/60">
                         {currentTournament.event_name}
                         {currentPick.finish_position && ` • Finished T${currentPick.finish_position}`}
                       </div>
@@ -807,42 +807,42 @@ const GolfPoolTool = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-slate-400">Earnings</div>
-                  <div className="text-2xl font-bold text-emerald-400">
+                  <div className="text-sm text-green-200/60">Earnings</div>
+                  <div className="text-2xl font-bold text-masters-yellow">
                     {formatDollar(currentPick.earnings)}
                   </div>
                 </div>
               </div>
             ) : (
               <div>
-                <h3 className="text-2xl mb-4 text-emerald-400">
+                <h3 className="text-2xl mb-4 text-masters-yellow">
                   MAKE YOUR PICK - WEEK {currentTournament.week_number}
                 </h3>
                 
                 {loadingPlayers ? (
-                  <div className="text-center py-8 text-slate-400">Loading players...</div>
+                  <div className="text-center py-8 text-green-200/60">Loading players...</div>
                 ) : (
                   <div className="space-y-4">
                     <div className="relative">
-                      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-200/60" />
                       <input
                         type="text"
                         placeholder="Search for a player..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                        className="w-full pl-12 pr-4 py-3 bg-masters-dark border border-green-800/30 rounded-lg text-white focus:border-masters-yellow focus:outline-none"
                       />
                     </div>
 
                     <div className="flex gap-4">
                       <div className="flex-1">
-                        <label className="block text-sm text-slate-400 mb-2">
+                        <label className="block text-sm text-green-200/60 mb-2">
                           Select Player ({filteredPlayers.length} {searchTerm ? 'results' : 'shown'})
                         </label>
                         <select
                           value={selectedPickPlayer}
                           onChange={(e) => setSelectedPickPlayer(e.target.value)}
-                          className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                          className="w-full px-4 py-3 bg-masters-dark border border-green-800/30 rounded-lg text-white focus:border-masters-yellow focus:outline-none"
                           disabled={isSubmitting}
                         >
                           <option value="">-- Choose a player --</option>
@@ -857,7 +857,7 @@ const GolfPoolTool = () => {
                             </option>
                           ))}
                         </select>
-                        <div className="text-xs text-slate-500 mt-1">
+                        <div className="text-xs text-green-300/40 mt-1">
                           {allPlayers.filter(p => p.used_in_tournament_id !== null).length} used •{' '}
                           {allPlayers.filter(p => p.used_in_tournament_id === null).length} available
                         </div>
@@ -869,8 +869,8 @@ const GolfPoolTool = () => {
                           disabled={!selectedPickPlayer || isSubmitting}
                           className={`px-8 py-3 rounded-lg font-bold transition-all whitespace-nowrap ${
                             !selectedPickPlayer || isSubmitting
-                              ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                              : 'bg-emerald-500 hover:bg-emerald-600 text-white glow'
+                              ? 'bg-green-900/50 text-green-300/40 cursor-not-allowed'
+                              : 'bg-masters-green hover:bg-green-700 text-white glow'
                           }`}
                         >
                           {isSubmitting ? 'Submitting...' : 'Lock In Pick'}
@@ -902,34 +902,34 @@ const GolfPoolTool = () => {
           <div className="max-w-7xl mx-auto mb-8 glass rounded-2xl p-6 glow animate-slide-in" style={{animationDelay: '0.15s'}}>
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h2 className="text-3xl mb-1 text-emerald-400">{currentTournament.event_name}</h2>
-                <p className="text-slate-400">
+                <h2 className="text-3xl mb-1 text-masters-yellow">{currentTournament.event_name}</h2>
+                <p className="text-green-200/60">
                   Week {currentTournament.week_number} • {currentTournament.segment} • {currentTournament.event_type}
                 </p>
-                <p className="text-sm text-slate-500 mt-1">
+                <p className="text-sm text-green-300/40 mt-1">
                   {currentTournament.course_name} • {currentTournament.city}, {currentTournament.country}
                 </p>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-emerald-400">
+                <div className="text-2xl font-bold text-masters-yellow">
                   ${(currentTournament.purse / 1000000).toFixed(1)}M
                 </div>
-                <div className="text-sm text-slate-400">
+                <div className="text-sm text-green-200/60">
                   {currentTournament.multiplier}x multiplier
                 </div>
-                <div className="text-xs text-slate-500 mt-1">
+                <div className="text-xs text-green-300/40 mt-1">
                   {new Date(currentTournament.start_date).toLocaleDateString()} - {new Date(currentTournament.end_date).toLocaleDateString()}
                 </div>
               </div>
             </div>
 
             {nextMajor && (
-              <div className="bg-purple-950/30 border border-purple-500/30 rounded-xl p-3 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-purple-400" />
+              <div className="bg-masters-azalea/10 border border-masters-azalea/30 rounded-xl p-3 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-masters-azalea" />
                 <div className="text-sm">
-                  <span className="text-purple-400 font-semibold">Next Major:</span>{' '}
-                  <span className="text-slate-300">{nextMajor.name}</span>{' '}
-                  <span className="text-slate-500">({nextMajor.weeks_away} weeks away)</span>
+                  <span className="text-masters-azalea font-semibold">Next Major:</span>{' '}
+                  <span className="text-green-100">{nextMajor.name}</span>{' '}
+                  <span className="text-green-300/40">({nextMajor.weeks_away} weeks away)</span>
                 </div>
               </div>
             )}
@@ -939,15 +939,15 @@ const GolfPoolTool = () => {
           <div className="max-w-7xl mx-auto mb-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-3xl text-emerald-400">TOP PICKS BY EXPECTED VALUE</h3>
-                <p className="text-sm text-slate-500">
+                <h3 className="text-3xl text-masters-yellow">TOP PICKS BY EXPECTED VALUE</h3>
+                <p className="text-sm text-green-300/40">
                   Live odds & probabilities • DataGolf analysis • Click to generate AI insights
                 </p>
               </div>
               <button
                 onClick={loadRecommendations}
                 disabled={loadingRecommendations}
-                className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-lg text-sm transition-all"
+                className="px-4 py-2 bg-masters-green/20 hover:bg-masters-green/30 rounded-lg text-sm transition-all"
               >
                 {loadingRecommendations ? 'Updating...' : 'Refresh Data'}
               </button>
@@ -956,12 +956,12 @@ const GolfPoolTool = () => {
 
           {loadingRecommendations ? (
             <div className="max-w-7xl mx-auto glass rounded-2xl p-12 text-center">
-              <div className="text-slate-400">Loading recommendations...</div>
+              <div className="text-green-200/60">Loading recommendations...</div>
             </div>
           ) : recommendations.length === 0 ? (
             <div className="max-w-7xl mx-auto glass rounded-2xl p-12 text-center">
-              <AlertCircle className="w-16 h-16 mx-auto mb-4 text-slate-500" />
-              <div className="text-slate-400">No recommendations available. Check back closer to tournament start.</div>
+              <AlertCircle className="w-16 h-16 mx-auto mb-4 text-green-300/40" />
+              <div className="text-green-200/60">No recommendations available. Check back closer to tournament start.</div>
             </div>
           ) : (
             <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -979,11 +979,11 @@ const GolfPoolTool = () => {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="shrink-0 text-center">
-                          <div className="text-lg font-bold text-slate-400">#{idx + 1}</div>
-                          <div className="text-[10px] text-slate-500 leading-none">OWGR {rec.owgr_rank}</div>
+                          <div className="text-lg font-bold text-green-200/60">#{idx + 1}</div>
+                          <div className="text-[10px] text-green-300/40 leading-none">OWGR {rec.owgr_rank}</div>
                         </div>
                         <h4 className="text-lg font-bold truncate">{rec.name}</h4>
-                        <span className="px-1.5 py-0.5 bg-slate-800/60 rounded-full text-xs font-semibold shrink-0">
+                        <span className="px-1.5 py-0.5 bg-masters-dark/60 rounded-full text-xs font-semibold shrink-0">
                           {rec.tier}
                         </span>
                         {rec.is_used && (
@@ -994,8 +994,8 @@ const GolfPoolTool = () => {
                         )}
                       </div>
                       <div className="text-right shrink-0 ml-2">
-                        <div className="text-xs text-slate-500">EV</div>
-                        <div className="text-sm font-bold text-emerald-400">
+                        <div className="text-xs text-green-300/40">EV</div>
+                        <div className="text-sm font-bold text-masters-yellow">
                           {rec.ev ? formatDollar(rec.ev) : 'N/A'}
                         </div>
                       </div>
@@ -1004,28 +1004,28 @@ const GolfPoolTool = () => {
                     {/* Core Stats */}
                     <div className="space-y-2.5">
                       <div className="flex flex-wrap gap-1.5 text-xs">
-                        <div className="bg-slate-800/30 rounded px-2 py-1">
-                          <span className="text-slate-500">DK Odds </span>
-                          <span className="font-bold text-emerald-400">{formatOdds(rec.win_odds)}</span>
+                        <div className="bg-masters-dark/30 rounded px-2 py-1">
+                          <span className="text-green-300/40">DK Odds </span>
+                          <span className="font-bold text-masters-yellow">{formatOdds(rec.win_odds)}</span>
                         </div>
-                        <div className="bg-slate-800/30 rounded px-2 py-1">
-                          <span className="text-slate-500">Win </span>
+                        <div className="bg-masters-dark/30 rounded px-2 py-1">
+                          <span className="text-green-300/40">Win </span>
                           <span className="font-semibold">{(rec.win_probability * 100).toFixed(1)}%</span>
                         </div>
-                        <div className="bg-slate-800/30 rounded px-2 py-1">
-                          <span className="text-slate-500">T5 </span>
+                        <div className="bg-masters-dark/30 rounded px-2 py-1">
+                          <span className="text-green-300/40">T5 </span>
                           <span className="font-semibold">{(rec.top_5_probability * 100).toFixed(1)}%</span>
                         </div>
-                        <div className="bg-slate-800/30 rounded px-2 py-1">
-                          <span className="text-slate-500">T10 </span>
+                        <div className="bg-masters-dark/30 rounded px-2 py-1">
+                          <span className="text-green-300/40">T10 </span>
                           <span className="font-semibold">{(rec.top_10_probability * 100).toFixed(1)}%</span>
                         </div>
-                        <div className="bg-slate-800/30 rounded px-2 py-1">
-                          <span className="text-slate-500">Cut </span>
+                        <div className="bg-masters-dark/30 rounded px-2 py-1">
+                          <span className="text-green-300/40">Cut </span>
                           <span className="font-semibold">{(rec.make_cut_probability * 100).toFixed(1)}%</span>
                         </div>
-                        <div className="bg-slate-800/30 rounded px-2 py-1">
-                          <span className="text-slate-500">DK </span>
+                        <div className="bg-masters-dark/30 rounded px-2 py-1">
+                          <span className="text-green-300/40">DK </span>
                           <span className="font-semibold">{rec.dk_salary ? `$${(rec.dk_salary / 1000).toFixed(1)}K` : 'N/A'}</span>
                         </div>
                       </div>
@@ -1034,20 +1034,20 @@ const GolfPoolTool = () => {
                       {rec.enrichment && (
                         <div className="flex flex-wrap gap-1.5">
                           {rec.enrichment.sg_total && (
-                            <div className="px-1.5 py-0.5 bg-emerald-500/20 border border-emerald-500/50 rounded text-xs">
-                              <span className="text-emerald-400 font-bold">
+                            <div className="px-1.5 py-0.5 bg-masters-green/20 border border-masters-yellow/30 rounded text-xs">
+                              <span className="text-masters-yellow font-bold">
                                 {Number(rec.enrichment.sg_total) > 0 ? '+' : ''}{Number(rec.enrichment.sg_total).toFixed(2)}
                               </span>
-                              <span className="text-slate-400 ml-1">SG</span>
+                              <span className="text-green-200/60 ml-1">SG</span>
                             </div>
                           )}
                           {Number(rec.enrichment.sg_putt) > 0.4 && (
-                            <div className="px-1.5 py-0.5 bg-purple-500/20 border border-purple-500/50 rounded text-xs text-purple-300">
+                            <div className="px-1.5 py-0.5 bg-masters-yellow/15 border border-masters-yellow/30 rounded text-xs text-masters-yellow">
                               Elite Putter
                             </div>
                           )}
                           {Number(rec.enrichment.sg_app) > 0.8 && (
-                            <div className="px-1.5 py-0.5 bg-blue-500/20 border border-blue-500/50 rounded text-xs text-blue-300">
+                            <div className="px-1.5 py-0.5 bg-green-600/20 border border-green-500/40 rounded text-xs text-green-300">
                               Elite Irons
                             </div>
                           )}
@@ -1075,29 +1075,29 @@ const GolfPoolTool = () => {
 
                       {/* Strokes Gained Statistics */}
                       {rec.enrichment && (
-                        <div className="text-xs border border-slate-700/50 rounded-lg p-2.5">
-                          <div className="text-slate-400 font-semibold mb-1.5">Strokes Gained Statistics</div>
+                        <div className="text-xs border border-green-800/30 rounded-lg p-2.5">
+                          <div className="text-green-200/60 font-semibold mb-1.5">Strokes Gained Statistics</div>
                           <div className="grid grid-cols-4 gap-2">
                             <div>
-                              <div className="text-slate-500">OTT</div>
+                              <div className="text-green-300/40">OTT</div>
                               <div className={Number(rec.enrichment.sg_ott) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
                                 {Number(rec.enrichment.sg_ott) > 0 ? '+' : ''}{Number(rec.enrichment.sg_ott)?.toFixed(2)}
                               </div>
                             </div>
                             <div>
-                              <div className="text-slate-500">APP</div>
+                              <div className="text-green-300/40">APP</div>
                               <div className={Number(rec.enrichment.sg_app) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
                                 {Number(rec.enrichment.sg_app) > 0 ? '+' : ''}{Number(rec.enrichment.sg_app)?.toFixed(2)}
                               </div>
                             </div>
                             <div>
-                              <div className="text-slate-500">ARG</div>
+                              <div className="text-green-300/40">ARG</div>
                               <div className={Number(rec.enrichment.sg_arg) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
                                 {Number(rec.enrichment.sg_arg) > 0 ? '+' : ''}{Number(rec.enrichment.sg_arg)?.toFixed(2)}
                               </div>
                             </div>
                             <div>
-                              <div className="text-slate-500">PUTT</div>
+                              <div className="text-green-300/40">PUTT</div>
                               <div className={Number(rec.enrichment.sg_putt) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
                                 {Number(rec.enrichment.sg_putt) > 0 ? '+' : ''}{Number(rec.enrichment.sg_putt)?.toFixed(2)}
                               </div>
@@ -1110,14 +1110,14 @@ const GolfPoolTool = () => {
                     {/* AI Narrative / Generate Button */}
                     <div className="mt-3">
                       {rec.narrative ? (
-                        <div className="p-2.5 bg-slate-900/40 rounded-lg border border-slate-700/50">
+                        <div className="p-2.5 bg-masters-darker/60 rounded-lg border border-green-800/30">
                           {rec.narrative && (
                             <div className={`flex items-center gap-1.5 text-sm font-bold mb-1.5 ${getRecommendationColor(rec.recommendation_tier)}`}>
                               <Icon className="w-4 h-4" />
                               <span>{rec.recommendation_tier}</span>
                             </div>
                           )}
-                          <div className="text-xs text-slate-300 leading-relaxed">
+                          <div className="text-xs text-green-100 leading-relaxed">
                             {rec.narrative}
                           </div>
                         </div>
@@ -1126,11 +1126,11 @@ const GolfPoolTool = () => {
                           <button
                             onClick={() => generateNarrative(rec)}
                             disabled={loadingNarrativeFor === rec.dg_id}
-                            className="w-full px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 rounded-lg text-xs font-semibold text-emerald-400 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full px-3 py-1.5 bg-masters-green/20 hover:bg-masters-green/30 border border-masters-yellow/30 rounded-lg text-xs font-semibold text-masters-yellow transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {loadingNarrativeFor === rec.dg_id ? (
                               <>
-                                <div className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                                <div className="w-3.5 h-3.5 border-2 border-masters-yellow border-t-transparent rounded-full animate-spin"></div>
                                 Generating...
                               </>
                             ) : (
@@ -1176,32 +1176,32 @@ const GolfPoolTool = () => {
       {activeTab === 'stats' && (
         <div className="max-w-7xl mx-auto">
           <div className="glass rounded-2xl p-6">
-            <h2 className="text-3xl mb-6 text-emerald-400">MY PICKS</h2>
+            <h2 className="text-3xl mb-6 text-masters-yellow">MY PICKS</h2>
 
             {allPicks.length === 0 ? (
-              <div className="text-center py-12 text-slate-400">
+              <div className="text-center py-12 text-green-200/60">
                 <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
                 <p>No picks yet. Make your first pick!</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {allPicks.map((pick) => (
-                  <div key={pick.id} className="bg-slate-800/50 rounded-xl p-4">
+                  <div key={pick.id} className="bg-masters-dark/50 rounded-xl p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="font-bold text-lg">{pick.player_name}</div>
-                        <div className="text-sm text-slate-400">
+                        <div className="text-sm text-green-200/60">
                           Week {pick.week_number} • {pick.event_name}
-                          {pick.segment && <span className="ml-2 text-xs text-slate-500">({pick.segment})</span>}
+                          {pick.segment && <span className="ml-2 text-xs text-green-300/40">({pick.segment})</span>}
                         </div>
                       </div>
                       <div className="text-right">
                         {pick.finish_position || pick.earnings > 0 ? (
                           <div className="flex items-center gap-3">
                             {pick.finish_position && (
-                              <div className="text-sm text-slate-400">T{pick.finish_position}</div>
+                              <div className="text-sm text-green-200/60">T{pick.finish_position}</div>
                             )}
-                            <div className="text-xl font-bold text-emerald-400">
+                            <div className="text-xl font-bold text-masters-yellow">
                               {formatDollar(pick.earnings)}
                             </div>
                             <button
@@ -1210,7 +1210,7 @@ const GolfPoolTool = () => {
                                 setEditFinishPosition(pick.finish_position?.toString() || '');
                                 setEditEarnings(pick.earnings.toString());
                               }}
-                              className="text-xs text-slate-500 hover:text-slate-300 ml-1"
+                              className="text-xs text-green-300/40 hover:text-green-100 ml-1"
                             >
                               Edit
                             </button>
@@ -1222,7 +1222,7 @@ const GolfPoolTool = () => {
                               setEditFinishPosition('');
                               setEditEarnings('');
                             }}
-                            className="px-3 py-1 bg-emerald-600/30 text-emerald-400 text-sm rounded-lg hover:bg-emerald-600/50 transition-colors"
+                            className="px-3 py-1 bg-masters-green/30 text-masters-yellow text-sm rounded-lg hover:bg-green-700/50 transition-colors"
                           >
                             Enter Result
                           </button>
@@ -1231,9 +1231,9 @@ const GolfPoolTool = () => {
                     </div>
 
                     {editingPickId === pick.id && (
-                      <div className="mt-3 pt-3 border-t border-slate-700 flex items-end gap-3">
+                      <div className="mt-3 pt-3 border-t border-green-800/30 flex items-end gap-3">
                         <div>
-                          <label className="block text-xs text-slate-400 mb-1">Finish Position</label>
+                          <label className="block text-xs text-green-200/60 mb-1">Finish Position</label>
                           <input
                             type="number"
                             min="1"
@@ -1241,23 +1241,23 @@ const GolfPoolTool = () => {
                             placeholder="e.g. 15"
                             value={editFinishPosition}
                             onChange={(e) => setEditFinishPosition(e.target.value)}
-                            className="w-24 px-2 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500"
+                            className="w-24 px-2 py-1.5 bg-green-900/50 border border-green-700/30 rounded-lg text-sm text-white focus:outline-none focus:border-masters-yellow"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-slate-400 mb-1">Earnings ($)</label>
+                          <label className="block text-xs text-green-200/60 mb-1">Earnings ($)</label>
                           <input
                             type="text"
                             placeholder="e.g. 150000"
                             value={editEarnings}
                             onChange={(e) => setEditEarnings(e.target.value)}
-                            className="w-32 px-2 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500"
+                            className="w-32 px-2 py-1.5 bg-green-900/50 border border-green-700/30 rounded-lg text-sm text-white focus:outline-none focus:border-masters-yellow"
                           />
                         </div>
                         <button
                           onClick={() => savePickResult(pick.id)}
                           disabled={savingResult || !editEarnings}
-                          className="px-4 py-1.5 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                          className="px-4 py-1.5 bg-masters-green text-white text-sm rounded-lg hover:bg-green-800 disabled:opacity-50 transition-colors"
                         >
                           {savingResult ? 'Saving...' : 'Save'}
                         </button>
@@ -1267,7 +1267,7 @@ const GolfPoolTool = () => {
                             setEditFinishPosition('');
                             setEditEarnings('');
                           }}
-                          className="px-3 py-1.5 text-slate-400 text-sm hover:text-slate-200 transition-colors"
+                          className="px-3 py-1.5 text-green-200/60 text-sm hover:text-green-100 transition-colors"
                         >
                           Cancel
                         </button>
@@ -1282,7 +1282,7 @@ const GolfPoolTool = () => {
       )}
 
       {/* Footer */}
-      <div className="max-w-7xl mx-auto mt-8 text-center text-slate-500 text-sm">
+      <div className="max-w-7xl mx-auto mt-8 text-center text-green-200/30 text-sm">
         <p>Live data powered by DataGolf • AI analysis by Claude</p>
         {currentTournament && (
           <p className="mt-1">
