@@ -697,7 +697,7 @@ const GolfPoolTool = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-masters-darker via-masters-dark to-masters-green text-green-50 p-6">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap');
 
         * {
           font-family: 'Inter', sans-serif;
@@ -736,7 +736,7 @@ const GolfPoolTool = () => {
 
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8 animate-slide-in">
-        <h1 className="text-6xl mb-2 bg-gradient-to-r from-masters-yellow to-masters-gold bg-clip-text text-transparent">
+        <h1 className="text-7xl mb-2 bg-gradient-to-r from-masters-yellow to-masters-gold bg-clip-text text-transparent" style={{ fontFamily: "'Pinyon Script', cursive" }}>
           Pimento Command Center
         </h1>
         <p className="text-green-200/60 text-lg">One & Done Earnings Pool • 171 Entries • $25,650 Pot</p>
