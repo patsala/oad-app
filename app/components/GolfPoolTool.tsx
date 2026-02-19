@@ -92,10 +92,14 @@ const formatDollar = (amount: number) => {
 };
 
 // Tournament Field Component
+type FieldSortKey = 'owgr' | 'win_odds' | 'win_probability' | 'make_cut_probability' | 'dk_salary';
+
 const TournamentFieldTab = () => {
   const [field, setField] = useState<any[]>([]);
   const [eventName, setEventName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<FieldSortKey>('owgr');
+  const [sortAsc, setSortAsc] = useState(true);
 
   useEffect(() => {
     loadField();
@@ -116,10 +120,38 @@ const TournamentFieldTab = () => {
     }
   };
 
+  const handleSort = (key: FieldSortKey) => {
+    if (sortBy === key) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortBy(key);
+      // Default sort direction: ascending for owgr/win_odds, descending for probabilities/salary
+      setSortAsc(key === 'owgr' || key === 'win_odds');
+    }
+  };
+
+  const sortedField = [...field].sort((a, b) => {
+    const aVal = a[sortBy] ?? 999999;
+    const bVal = b[sortBy] ?? 999999;
+    return sortAsc ? aVal - bVal : bVal - aVal;
+  });
+
   const formatOdds = (odds: number | null) => {
     if (!odds) return 'N/A';
     return odds > 0 ? `+${odds}` : `${odds}`;
   };
+
+  const SortHeader = ({ label, sortKey, className = '' }: { label: string; sortKey: FieldSortKey; className?: string }) => (
+    <button
+      onClick={() => handleSort(sortKey)}
+      className={`text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1 ${className}`}
+    >
+      {label}
+      {sortBy === sortKey && (
+        <span className="text-emerald-400">{sortAsc ? '▲' : '▼'}</span>
+      )}
+    </button>
+  );
 
   if (loading) {
     return (
@@ -133,29 +165,57 @@ const TournamentFieldTab = () => {
     <div className="max-w-7xl mx-auto">
       <div className="glass rounded-2xl p-6">
         <h2 className="text-3xl mb-2 text-emerald-400">TOURNAMENT FIELD</h2>
-        <p className="text-slate-400 mb-6">{eventName}</p>
-        
-        <div className="space-y-2">
-          {field.map((player, idx) => (
-            <div 
+        <p className="text-slate-400 mb-4">{eventName}</p>
+
+        {/* Table Header */}
+        <div className="bg-slate-800/70 rounded-lg px-4 py-2 flex items-center justify-between mb-2">
+          <div className="flex items-center gap-4">
+            <div className="w-8"></div>
+            <div className="text-xs text-slate-500">Player</div>
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="w-16 text-right"><SortHeader label="OWGR" sortKey="owgr" className="justify-end" /></div>
+            <div className="w-20 text-right"><SortHeader label="Win Odds" sortKey="win_odds" className="justify-end" /></div>
+            <div className="w-16 text-right"><SortHeader label="Win %" sortKey="win_probability" className="justify-end" /></div>
+            <div className="w-16 text-right"><SortHeader label="Cut %" sortKey="make_cut_probability" className="justify-end" /></div>
+            <div className="w-20 text-right"><SortHeader label="DK Salary" sortKey="dk_salary" className="justify-end" /></div>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          {sortedField.map((player, idx) => (
+            <div
               key={player.dg_id}
-              className="bg-slate-800/50 rounded-lg p-4 flex items-center justify-between hover:bg-slate-800/70 transition-all"
+              className="bg-slate-800/50 rounded-lg px-4 py-3 flex items-center justify-between hover:bg-slate-800/70 transition-all"
             >
               <div className="flex items-center gap-4">
-                <div className="text-slate-500 font-mono w-8">{idx + 1}</div>
+                <div className="text-slate-500 font-mono w-8 text-sm">{idx + 1}</div>
                 <div>
-                  <div className="font-bold">{player.name}</div>
-                  <div className="text-sm text-slate-500">{player.country}</div>
+                  <div className="font-bold text-sm">{player.name}</div>
+                  <div className="text-xs text-slate-500">{player.country}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-8">
-                <div className="text-right">
-                  <div className="text-xs text-slate-500">OWGR</div>
-                  <div className="font-semibold">#{player.owgr || 'N/A'}</div>
+              <div className="flex items-center gap-6">
+                <div className="w-16 text-right">
+                  <div className="font-semibold text-sm">#{player.owgr || 'N/A'}</div>
                 </div>
-                <div className="text-right">
-                  <div className="text-xs text-slate-500">Win Odds</div>
-                  <div className="font-semibold text-emerald-400">{formatOdds(player.win_odds)}</div>
+                <div className="w-20 text-right">
+                  <div className="font-semibold text-sm text-emerald-400">{formatOdds(player.win_odds)}</div>
+                </div>
+                <div className="w-16 text-right">
+                  <div className="font-semibold text-sm">
+                    {player.win_probability != null ? `${(player.win_probability * 100).toFixed(1)}%` : 'N/A'}
+                  </div>
+                </div>
+                <div className="w-16 text-right">
+                  <div className="font-semibold text-sm">
+                    {player.make_cut_probability != null ? `${(player.make_cut_probability * 100).toFixed(0)}%` : 'N/A'}
+                  </div>
+                </div>
+                <div className="w-20 text-right">
+                  <div className="font-semibold text-sm">
+                    {player.dk_salary ? `$${(player.dk_salary / 1000).toFixed(1)}K` : 'N/A'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -850,7 +910,10 @@ const GolfPoolTool = () => {
                     {/* Header: Rank, Name, Tier, EV */}
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="text-lg font-bold text-slate-400">#{idx + 1}</div>
+                        <div className="shrink-0 text-center">
+                          <div className="text-lg font-bold text-slate-400">#{idx + 1}</div>
+                          <div className="text-[10px] text-slate-500 leading-none">OWGR {rec.owgr_rank}</div>
+                        </div>
                         <h4 className="text-lg font-bold truncate">{rec.name}</h4>
                         <span className="px-1.5 py-0.5 bg-slate-800/60 rounded-full text-xs font-semibold shrink-0">
                           {rec.tier}
@@ -896,10 +959,6 @@ const GolfPoolTool = () => {
                         <div className="bg-slate-800/30 rounded px-2 py-1">
                           <span className="text-slate-500">DK </span>
                           <span className="font-semibold">{rec.dk_salary ? `$${(rec.dk_salary / 1000).toFixed(1)}K` : 'N/A'}</span>
-                        </div>
-                        <div className="bg-slate-800/30 rounded px-2 py-1">
-                          <span className="text-slate-500">#</span>
-                          <span className="font-semibold">{rec.owgr_rank}</span>
                         </div>
                       </div>
 
