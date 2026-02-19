@@ -867,28 +867,32 @@ const GolfPoolTool = () => {
                         {/* Enhanced Data Display with Skill Badges */}
 <div className="space-y-3">
   {/* Row 1: Core Stats - Compact */}
-  <div className="grid grid-cols-6 gap-2 text-xs">
-    <div className="bg-slate-800/30 rounded p-2">
+  <div className="flex flex-wrap gap-1.5 text-xs">
+    <div className="bg-slate-800/30 rounded px-2 py-1.5">
       <div className="text-slate-500">Win Odds</div>
       <div className="font-bold text-emerald-400">{formatOdds(rec.win_odds)}</div>
     </div>
-    <div className="bg-slate-800/30 rounded p-2">
+    <div className="bg-slate-800/30 rounded px-2 py-1.5">
       <div className="text-slate-500">Win %</div>
       <div className="font-semibold">{(rec.win_probability * 100).toFixed(1)}%</div>
     </div>
-    <div className="bg-slate-800/30 rounded p-2">
-      <div className="text-slate-500">Top 5 %</div>
+    <div className="bg-slate-800/30 rounded px-2 py-1.5">
+      <div className="text-slate-500">Top 5</div>
       <div className="font-semibold">{(rec.top_5_probability * 100).toFixed(1)}%</div>
     </div>
-    <div className="bg-slate-800/30 rounded p-2">
-      <div className="text-slate-500">Top 10 %</div>
+    <div className="bg-slate-800/30 rounded px-2 py-1.5">
+      <div className="text-slate-500">Top 10</div>
       <div className="font-semibold">{(rec.top_10_probability * 100).toFixed(1)}%</div>
     </div>
-    <div className="bg-slate-800/30 rounded p-2">
+    <div className="bg-slate-800/30 rounded px-2 py-1.5">
+      <div className="text-slate-500">Make Cut</div>
+      <div className="font-semibold">{(rec.make_cut_probability * 100).toFixed(1)}%</div>
+    </div>
+    <div className="bg-slate-800/30 rounded px-2 py-1.5">
       <div className="text-slate-500">DK $</div>
       <div className="font-semibold">{rec.dk_salary ? `$${(rec.dk_salary / 1000).toFixed(1)}K` : 'N/A'}</div>
     </div>
-    <div className="bg-slate-800/30 rounded p-2">
+    <div className="bg-slate-800/30 rounded px-2 py-1.5">
       <div className="text-slate-500">OWGR</div>
       <div className="font-semibold">#{rec.owgr_rank}</div>
     </div>
@@ -942,39 +946,37 @@ const GolfPoolTool = () => {
     </div>
   )}
 
-  {/* Row 3: Detailed Skills (Collapsible - shown on click) */}
+  {/* Row 3: Strokes Gained Statistics */}
   {rec.enrichment && (
-    <details className="text-xs">
-      <summary className="cursor-pointer text-slate-400 hover:text-slate-300">
-        📊 Detailed Skill Breakdown
-      </summary>
-      <div className="mt-2 grid grid-cols-4 gap-2 p-2 bg-slate-900/40 rounded">
+    <div className="text-xs border border-slate-700/50 rounded-lg p-3">
+      <div className="text-slate-400 font-semibold mb-2">Strokes Gained Statistics</div>
+      <div className="grid grid-cols-4 gap-2">
         <div>
-          <div className="text-slate-500">SG: OTT</div>
-          <div className={Number(rec.enrichment.sg_ott) > 0 ? 'text-green-400' : 'text-red-400'}>
+          <div className="text-slate-500">OTT</div>
+          <div className={Number(rec.enrichment.sg_ott) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
             {Number(rec.enrichment.sg_ott) > 0 ? '+' : ''}{Number(rec.enrichment.sg_ott)?.toFixed(2)}
           </div>
         </div>
         <div>
-          <div className="text-slate-500">SG: Approach</div>
-          <div className={Number(rec.enrichment.sg_app) > 0 ? 'text-green-400' : 'text-red-400'}>
+          <div className="text-slate-500">Approach</div>
+          <div className={Number(rec.enrichment.sg_app) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
             {Number(rec.enrichment.sg_app) > 0 ? '+' : ''}{Number(rec.enrichment.sg_app)?.toFixed(2)}
           </div>
         </div>
         <div>
-          <div className="text-slate-500">SG: ARG</div>
-          <div className={Number(rec.enrichment.sg_arg) > 0 ? 'text-green-400' : 'text-red-400'}>
+          <div className="text-slate-500">Around Green</div>
+          <div className={Number(rec.enrichment.sg_arg) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
             {Number(rec.enrichment.sg_arg) > 0 ? '+' : ''}{Number(rec.enrichment.sg_arg)?.toFixed(2)}
           </div>
         </div>
         <div>
-          <div className="text-slate-500">SG: Putt</div>
-          <div className={rec.enrichment.sg_putt > 0 ? 'text-green-400' : 'text-red-400'}>
+          <div className="text-slate-500">Putting</div>
+          <div className={Number(rec.enrichment.sg_putt) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
             {Number(rec.enrichment.sg_putt) > 0 ? '+' : ''}{Number(rec.enrichment.sg_putt)?.toFixed(2)}
           </div>
         </div>
       </div>
-    </details>
+    </div>
   )}
 </div>
 
