@@ -836,216 +836,197 @@ const GolfPoolTool = () => {
               <div className="text-slate-400">No recommendations available. Check back closer to tournament start.</div>
             </div>
           ) : (
-            <div className="max-w-7xl mx-auto grid gap-4">
+            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
               {recommendations.map((rec, idx) => {
                 const Icon = getRecommendationIcon(rec.recommendation_tier);
-                
+
                 return (
                   <div
                     key={rec.dg_id}
-                    className={`glass rounded-xl p-5 transition-all hover:scale-[1.01] bg-gradient-to-br ${getTierColor(rec.tier)} border ${
+                    className={`glass rounded-xl p-4 transition-all hover:scale-[1.01] bg-gradient-to-br ${getTierColor(rec.tier)} border ${
                       rec.is_used ? 'opacity-50' : ''
                     }`}
                   >
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="text-xl font-bold text-slate-400">#{idx + 1}</div>
-                          <h4 className="text-xl font-bold">{rec.name}</h4>
-                          <span className="px-2 py-1 bg-slate-800/60 rounded-full text-xs font-semibold">
-                            {rec.tier}
+                    {/* Header: Rank, Name, Tier, EV */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="text-lg font-bold text-slate-400">#{idx + 1}</div>
+                        <h4 className="text-lg font-bold truncate">{rec.name}</h4>
+                        <span className="px-1.5 py-0.5 bg-slate-800/60 rounded-full text-xs font-semibold shrink-0">
+                          {rec.tier}
+                        </span>
+                        {rec.is_used && (
+                          <span className="px-1.5 py-0.5 bg-red-500/30 rounded-full text-xs font-semibold flex items-center gap-1 shrink-0">
+                            <Lock className="w-3 h-3" />
+                            W{rec.used_week}
                           </span>
-                          {rec.is_used && (
-                            <span className="px-2 py-1 bg-red-500/30 rounded-full text-xs font-semibold flex items-center gap-1">
-                              <Lock className="w-3 h-3" />
-                              Used W{rec.used_week}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Enhanced Data Display with Skill Badges */}
-<div className="space-y-3">
-  {/* Row 1: Core Stats - Compact */}
-  <div className="flex flex-wrap gap-1.5 text-xs">
-    <div className="bg-slate-800/30 rounded px-2 py-1.5">
-      <div className="text-slate-500">Win Odds</div>
-      <div className="font-bold text-emerald-400">{formatOdds(rec.win_odds)}</div>
-    </div>
-    <div className="bg-slate-800/30 rounded px-2 py-1.5">
-      <div className="text-slate-500">Win %</div>
-      <div className="font-semibold">{(rec.win_probability * 100).toFixed(1)}%</div>
-    </div>
-    <div className="bg-slate-800/30 rounded px-2 py-1.5">
-      <div className="text-slate-500">Top 5</div>
-      <div className="font-semibold">{(rec.top_5_probability * 100).toFixed(1)}%</div>
-    </div>
-    <div className="bg-slate-800/30 rounded px-2 py-1.5">
-      <div className="text-slate-500">Top 10</div>
-      <div className="font-semibold">{(rec.top_10_probability * 100).toFixed(1)}%</div>
-    </div>
-    <div className="bg-slate-800/30 rounded px-2 py-1.5">
-      <div className="text-slate-500">Make Cut</div>
-      <div className="font-semibold">{(rec.make_cut_probability * 100).toFixed(1)}%</div>
-    </div>
-    <div className="bg-slate-800/30 rounded px-2 py-1.5">
-      <div className="text-slate-500">DK $</div>
-      <div className="font-semibold">{rec.dk_salary ? `$${(rec.dk_salary / 1000).toFixed(1)}K` : 'N/A'}</div>
-    </div>
-    <div className="bg-slate-800/30 rounded px-2 py-1.5">
-      <div className="text-slate-500">OWGR</div>
-      <div className="font-semibold">#{rec.owgr_rank}</div>
-    </div>
-  </div>
-
-  {/* Row 2: Skill Badges (if enrichment data available) */}
-  {rec.enrichment && (
-    <div className="flex flex-wrap gap-2">
-      {rec.enrichment.sg_total && (
-  <div className="px-2 py-1 bg-emerald-500/20 border border-emerald-500/50 rounded text-xs">
-    <span className="text-emerald-400 font-bold">
-      {Number(rec.enrichment.sg_total) > 0 ? '+' : ''}{Number(rec.enrichment.sg_total).toFixed(2)}
-    </span>
-    <span className="text-slate-400 ml-1">SG Total</span>
-  </div>
-)}
-      
-      {/* Elite Skill Badges */}
-      {Number(rec.enrichment.sg_putt) > 0.4 && (
-        <div className="px-2 py-1 bg-purple-500/20 border border-purple-500/50 rounded text-xs text-purple-300">
-          ⛳ Elite Putter
-        </div>
-      )}
-      {Number(rec.enrichment.sg_app) > 0.8 && (
-        <div className="px-2 py-1 bg-blue-500/20 border border-blue-500/50 rounded text-xs text-blue-300">
-          🎯 Elite Irons
-        </div>
-      )}
-      {Number(rec.enrichment.sg_ott) > 0.6 && (
-        <div className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/50 rounded text-xs text-yellow-300">
-          💪 Elite Driver
-        </div>
-      )}
-      {Number(rec.enrichment.driving_dist) > 10 && (
-        <div className="px-2 py-1 bg-red-500/20 border border-red-500/50 rounded text-xs text-red-300">
-          🚀 Bomber
-        </div>
-      )}
-      
-      {/* Course Fit Indicator */}
-      {rec.enrichment.course_history_adj && Math.abs(rec.enrichment.course_history_adj) > 0.05 && (
-        <div className={`px-2 py-1 rounded text-xs ${
-          Number(rec.enrichment.course_history_adj) > 0 
-            ? 'bg-green-500/20 border border-green-500/50 text-green-300'
-            : 'bg-orange-500/20 border border-orange-500/50 text-orange-300'
-        }`}>
-          {Number(rec.enrichment.course_history_adj) > 0 ? '📈' : '📉'} Course History{' '}
-          {Number(rec.enrichment.course_history_adj) > 0 ? '+' : ''}{(Number(rec.enrichment.course_history_adj) * 100).toFixed(1)}%
-        </div>
-      )}
-    </div>
-  )}
-
-  {/* Row 3: Strokes Gained Statistics */}
-  {rec.enrichment && (
-    <div className="text-xs border border-slate-700/50 rounded-lg p-3">
-      <div className="text-slate-400 font-semibold mb-2">Strokes Gained Statistics</div>
-      <div className="grid grid-cols-4 gap-2">
-        <div>
-          <div className="text-slate-500">OTT</div>
-          <div className={Number(rec.enrichment.sg_ott) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
-            {Number(rec.enrichment.sg_ott) > 0 ? '+' : ''}{Number(rec.enrichment.sg_ott)?.toFixed(2)}
-          </div>
-        </div>
-        <div>
-          <div className="text-slate-500">Approach</div>
-          <div className={Number(rec.enrichment.sg_app) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
-            {Number(rec.enrichment.sg_app) > 0 ? '+' : ''}{Number(rec.enrichment.sg_app)?.toFixed(2)}
-          </div>
-        </div>
-        <div>
-          <div className="text-slate-500">Around Green</div>
-          <div className={Number(rec.enrichment.sg_arg) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
-            {Number(rec.enrichment.sg_arg) > 0 ? '+' : ''}{Number(rec.enrichment.sg_arg)?.toFixed(2)}
-          </div>
-        </div>
-        <div>
-          <div className="text-slate-500">Putting</div>
-          <div className={Number(rec.enrichment.sg_putt) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
-            {Number(rec.enrichment.sg_putt) > 0 ? '+' : ''}{Number(rec.enrichment.sg_putt)?.toFixed(2)}
-          </div>
-        </div>
-      </div>
-    </div>
-  )}
-</div>
-
-                        {/* AI Narrative Section */}
-                        <div className="mt-4">
-                          {rec.narrative ? (
-                            <div className="p-3 bg-slate-900/40 rounded-lg border border-slate-700/50">
-                              <div className="flex items-start gap-2">
-                                <div className="text-emerald-400 mt-0.5">
-                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-                                  </svg>
-                                </div>
-                                <div className="flex-1">
-                                  <div className="text-xs text-slate-500 mb-1">AI Analysis</div>
-                                  <div className="text-sm text-slate-300 leading-relaxed">
-                                    {rec.narrative}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div>
-                              <button
-                                onClick={() => generateNarrative(rec)}
-                                disabled={loadingNarrativeFor === rec.dg_id}
-                                className="w-full px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 rounded-lg text-sm font-semibold text-emerald-400 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {loadingNarrativeFor === rec.dg_id ? (
-                                  <>
-                                    <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-                                    Generating Analysis...
-                                  </>
-                                ) : (
-                                  <>
-                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                      <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-                                    </svg>
-                                    {narrativeError?.playerId === rec.dg_id ? 'Retry AI Analysis' : 'Generate AI Analysis'}
-                                  </>
-                                )}
-                              </button>
-                              {narrativeError?.playerId === rec.dg_id && (
-                                <div className="mt-1 text-xs text-red-400 text-center">
-                                  {narrativeError.message}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Recommendation Badge - only show if narrative generated */}
-                      <div className="text-right ml-4">
-                        {rec.narrative && (
-                          <div className={`flex items-center gap-2 text-lg font-bold mb-1 ${getRecommendationColor(rec.recommendation_tier)}`}>
-                            <Icon className="w-5 h-5" />
-                            <span className="whitespace-nowrap">{rec.recommendation_tier}</span>
-                          </div>
                         )}
-                        <div className="text-xs text-slate-500">
-                          EV: {rec.ev ? formatDollar(rec.ev) : 'N/A'}
+                      </div>
+                      <div className="text-right shrink-0 ml-2">
+                        <div className="text-xs text-slate-500">EV</div>
+                        <div className="text-sm font-bold text-emerald-400">
+                          {rec.ev ? formatDollar(rec.ev) : 'N/A'}
                         </div>
                       </div>
                     </div>
 
+                    {/* Core Stats */}
+                    <div className="space-y-2.5">
+                      <div className="flex flex-wrap gap-1.5 text-xs">
+                        <div className="bg-slate-800/30 rounded px-2 py-1">
+                          <span className="text-slate-500">Odds </span>
+                          <span className="font-bold text-emerald-400">{formatOdds(rec.win_odds)}</span>
+                        </div>
+                        <div className="bg-slate-800/30 rounded px-2 py-1">
+                          <span className="text-slate-500">Win </span>
+                          <span className="font-semibold">{(rec.win_probability * 100).toFixed(1)}%</span>
+                        </div>
+                        <div className="bg-slate-800/30 rounded px-2 py-1">
+                          <span className="text-slate-500">T5 </span>
+                          <span className="font-semibold">{(rec.top_5_probability * 100).toFixed(1)}%</span>
+                        </div>
+                        <div className="bg-slate-800/30 rounded px-2 py-1">
+                          <span className="text-slate-500">T10 </span>
+                          <span className="font-semibold">{(rec.top_10_probability * 100).toFixed(1)}%</span>
+                        </div>
+                        <div className="bg-slate-800/30 rounded px-2 py-1">
+                          <span className="text-slate-500">Cut </span>
+                          <span className="font-semibold">{(rec.make_cut_probability * 100).toFixed(1)}%</span>
+                        </div>
+                        <div className="bg-slate-800/30 rounded px-2 py-1">
+                          <span className="text-slate-500">DK </span>
+                          <span className="font-semibold">{rec.dk_salary ? `$${(rec.dk_salary / 1000).toFixed(1)}K` : 'N/A'}</span>
+                        </div>
+                        <div className="bg-slate-800/30 rounded px-2 py-1">
+                          <span className="text-slate-500">#</span>
+                          <span className="font-semibold">{rec.owgr_rank}</span>
+                        </div>
+                      </div>
+
+                      {/* Skill Badges */}
+                      {rec.enrichment && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {rec.enrichment.sg_total && (
+                            <div className="px-1.5 py-0.5 bg-emerald-500/20 border border-emerald-500/50 rounded text-xs">
+                              <span className="text-emerald-400 font-bold">
+                                {Number(rec.enrichment.sg_total) > 0 ? '+' : ''}{Number(rec.enrichment.sg_total).toFixed(2)}
+                              </span>
+                              <span className="text-slate-400 ml-1">SG</span>
+                            </div>
+                          )}
+                          {Number(rec.enrichment.sg_putt) > 0.4 && (
+                            <div className="px-1.5 py-0.5 bg-purple-500/20 border border-purple-500/50 rounded text-xs text-purple-300">
+                              Elite Putter
+                            </div>
+                          )}
+                          {Number(rec.enrichment.sg_app) > 0.8 && (
+                            <div className="px-1.5 py-0.5 bg-blue-500/20 border border-blue-500/50 rounded text-xs text-blue-300">
+                              Elite Irons
+                            </div>
+                          )}
+                          {Number(rec.enrichment.sg_ott) > 0.6 && (
+                            <div className="px-1.5 py-0.5 bg-yellow-500/20 border border-yellow-500/50 rounded text-xs text-yellow-300">
+                              Elite Driver
+                            </div>
+                          )}
+                          {Number(rec.enrichment.driving_dist) > 10 && (
+                            <div className="px-1.5 py-0.5 bg-red-500/20 border border-red-500/50 rounded text-xs text-red-300">
+                              Bomber
+                            </div>
+                          )}
+                          {rec.enrichment.course_history_adj && Math.abs(rec.enrichment.course_history_adj) > 0.05 && (
+                            <div className={`px-1.5 py-0.5 rounded text-xs ${
+                              Number(rec.enrichment.course_history_adj) > 0
+                                ? 'bg-green-500/20 border border-green-500/50 text-green-300'
+                                : 'bg-orange-500/20 border border-orange-500/50 text-orange-300'
+                            }`}>
+                              {Number(rec.enrichment.course_history_adj) > 0 ? '+' : ''}{(Number(rec.enrichment.course_history_adj) * 100).toFixed(1)}% Course Hx
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Strokes Gained Statistics */}
+                      {rec.enrichment && (
+                        <div className="text-xs border border-slate-700/50 rounded-lg p-2.5">
+                          <div className="text-slate-400 font-semibold mb-1.5">Strokes Gained Statistics</div>
+                          <div className="grid grid-cols-4 gap-2">
+                            <div>
+                              <div className="text-slate-500">OTT</div>
+                              <div className={Number(rec.enrichment.sg_ott) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
+                                {Number(rec.enrichment.sg_ott) > 0 ? '+' : ''}{Number(rec.enrichment.sg_ott)?.toFixed(2)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-slate-500">APP</div>
+                              <div className={Number(rec.enrichment.sg_app) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
+                                {Number(rec.enrichment.sg_app) > 0 ? '+' : ''}{Number(rec.enrichment.sg_app)?.toFixed(2)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-slate-500">ARG</div>
+                              <div className={Number(rec.enrichment.sg_arg) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
+                                {Number(rec.enrichment.sg_arg) > 0 ? '+' : ''}{Number(rec.enrichment.sg_arg)?.toFixed(2)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-slate-500">PUTT</div>
+                              <div className={Number(rec.enrichment.sg_putt) > 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
+                                {Number(rec.enrichment.sg_putt) > 0 ? '+' : ''}{Number(rec.enrichment.sg_putt)?.toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* AI Narrative / Generate Button */}
+                    <div className="mt-3">
+                      {rec.narrative ? (
+                        <div className="p-2.5 bg-slate-900/40 rounded-lg border border-slate-700/50">
+                          {rec.narrative && (
+                            <div className={`flex items-center gap-1.5 text-sm font-bold mb-1.5 ${getRecommendationColor(rec.recommendation_tier)}`}>
+                              <Icon className="w-4 h-4" />
+                              <span>{rec.recommendation_tier}</span>
+                            </div>
+                          )}
+                          <div className="text-xs text-slate-300 leading-relaxed">
+                            {rec.narrative}
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <button
+                            onClick={() => generateNarrative(rec)}
+                            disabled={loadingNarrativeFor === rec.dg_id}
+                            className="w-full px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 rounded-lg text-xs font-semibold text-emerald-400 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {loadingNarrativeFor === rec.dg_id ? (
+                              <>
+                                <div className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                                Generating...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                                </svg>
+                                {narrativeError?.playerId === rec.dg_id ? 'Retry AI Analysis' : 'Generate AI Analysis'}
+                              </>
+                            )}
+                          </button>
+                          {narrativeError?.playerId === rec.dg_id && (
+                            <div className="mt-1 text-xs text-red-400 text-center">
+                              {narrativeError.message}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Strategic Note */}
                     {rec.strategic_note && (
-                      <div className="mt-3 text-xs text-yellow-400 flex items-center gap-1">
+                      <div className="mt-2 text-xs text-yellow-400 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3" />
                         {rec.strategic_note}
                       </div>
