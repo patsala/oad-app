@@ -37,8 +37,12 @@ export async function GET() {
         dg_id: player.dg_id,
         owgr: player.owgr_rank,
         country: player.country,
-        win_odds: playerOdds?.datagolf?.baseline ?
-          parseInt(playerOdds.datagolf.baseline.replace('+', '')) : null,
+        // Prefer DraftKings odds, fall back to DataGolf model odds
+        win_odds: playerOdds?.draftkings
+          ? parseInt(String(playerOdds.draftkings).replace('+', ''))
+          : playerOdds?.datagolf?.baseline
+            ? parseInt(playerOdds.datagolf.baseline.replace('+', ''))
+            : null,
         win_probability: playerProb?.win || null,
         make_cut_probability: playerProb?.make_cut || null,
         dk_salary: playerDfs?.salary || null

@@ -184,17 +184,18 @@ export async function GET() {
       if (!dbPlayer) continue;
       
       const playerOdds = currentOdds.find((o: any) => o.dg_id === fieldPlayer.dg_id);
-      if (!playerOdds || !playerOdds.datagolf?.baseline) continue;
-      
+      if (!playerOdds) continue;
+
       const playerProb = probabilities.find((p: any) => p.dg_id === fieldPlayer.dg_id);
       const playerProbCourseFit = probabilitiesCourseFit.find((p: any) => p.dg_id === fieldPlayer.dg_id);
       const playerDfs = dfsProjections.find((d: any) => d.dg_id === fieldPlayer.dg_id);
-      
+
       if (!playerProb) continue;
-      
+
       const isUsed = dbPlayer.used_in_tournament_id !== null;
-      
-      const winOdds = parseOdds(playerOdds.datagolf.baseline);
+
+      // Prefer DraftKings odds, fall back to DataGolf model odds
+      const winOdds = parseOdds(playerOdds.draftkings) || parseOdds(playerOdds.datagolf?.baseline);
       if (!winOdds) continue;
       
       const winProb = playerProb.win || 0;

@@ -39,6 +39,9 @@ interface Pick {
   event_name?: string;
   week_number?: number;
   segment?: string;
+  is_completed?: boolean;
+  purse?: number;
+  multiplier?: number;
 }
 
 interface SegmentStanding {
@@ -362,6 +365,12 @@ const GolfPoolTool = () => {
   const [segmentStandings, setSegmentStandings] = useState<SegmentStanding[]>([]);
   const [allPicks, setAllPicks] = useState<Pick[]>([]);
 
+  // Result entry state
+  const [editingPickId, setEditingPickId] = useState<number | null>(null);
+  const [editFinishPosition, setEditFinishPosition] = useState('');
+  const [editEarnings, setEditEarnings] = useState('');
+  const [savingResult, setSavingResult] = useState(false);
+
   // Load data on mount
   useEffect(() => {
     loadCurrentTournament();
@@ -439,6 +448,35 @@ const GolfPoolTool = () => {
     } catch (error) {
       console.error('Failed to load standings:', error);
     }
+  };
+
+  const savePickResult = async (pickId: number) => {
+    const earnings = parseFloat(editEarnings.replace(/[,$]/g, ''));
+    if (isNaN(earnings)) return;
+
+    setSavingResult(true);
+    try {
+      const response = await fetch('/api/picks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pick_id: pickId,
+          finish_position: editFinishPosition ? parseInt(editFinishPosition) : null,
+          earnings
+        })
+      });
+
+      if (response.ok) {
+        setEditingPickId(null);
+        setEditFinishPosition('');
+        setEditEarnings('');
+        loadPicks();
+        loadSegmentStandings();
+      }
+    } catch (error) {
+      console.error('Failed to save result:', error);
+    }
+    setSavingResult(false);
   };
 
   const loadRecommendations = async () => {
@@ -937,7 +975,7 @@ const GolfPoolTool = () => {
                     <div className="space-y-2.5">
                       <div className="flex flex-wrap gap-1.5 text-xs">
                         <div className="bg-slate-800/30 rounded px-2 py-1">
-                          <span className="text-slate-500">Odds </span>
+                          <span className="text-slate-500">DK Odds </span>
                           <span className="font-bold text-emerald-400">{formatOdds(rec.win_odds)}</span>
                         </div>
                         <div className="bg-slate-800/30 rounded px-2 py-1">
@@ -1109,7 +1147,7 @@ const GolfPoolTool = () => {
         <div className="max-w-7xl mx-auto">
           <div className="glass rounded-2xl p-6">
             <h2 className="text-3xl mb-6 text-emerald-400">MY PICKS</h2>
-            
+
             {allPicks.length === 0 ? (
               <div className="text-center py-12 text-slate-400">
                 <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
@@ -1118,25 +1156,93 @@ const GolfPoolTool = () => {
             ) : (
               <div className="space-y-4">
                 {allPicks.map((pick) => (
-                  <div key={pick.id} className="bg-slate-800/50 rounded-xl p-4 flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-lg">{pick.player_name}</div>
-                      <div className="text-sm text-slate-400">
-                        Week {pick.week_number} • {pick.event_name}
+                  <div key={pick.id} className="bg-slate-800/50 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-lg">{pick.player_name}</div>
+                        <div className="text-sm text-slate-400">
+                          Week {pick.week_number} • {pick.event_name}
+                          {pick.segment && <span className="ml-2 text-xs text-slate-500">({pick.segment})</span>}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        {pick.finish_position || pick.earnings > 0 ? (
+                          <div className="flex items-center gap-3">
+                            {pick.finish_position && (
+                              <div className="text-sm text-slate-400">T{pick.finish_position}</div>
+                            )}
+                            <div className="text-xl font-bold text-emerald-400">
+                              {formatDollar(pick.earnings)}
+                            </div>
+                            <button
+                              onClick={() => {
+                                setEditingPickId(pick.id);
+                                setEditFinishPosition(pick.finish_position?.toString() || '');
+                                setEditEarnings(pick.earnings.toString());
+                              }}
+                              className="text-xs text-slate-500 hover:text-slate-300 ml-1"
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setEditingPickId(pick.id);
+                              setEditFinishPosition('');
+                              setEditEarnings('');
+                            }}
+                            className="px-3 py-1 bg-emerald-600/30 text-emerald-400 text-sm rounded-lg hover:bg-emerald-600/50 transition-colors"
+                          >
+                            Enter Result
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      {pick.finish_position ? (
-                        <>
-                          <div className="text-sm text-slate-400">T{pick.finish_position}</div>
-                          <div className="text-xl font-bold text-emerald-400">
-                            {formatDollar(pick.earnings)}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-slate-500">Pending</div>
-                      )}
-                    </div>
+
+                    {editingPickId === pick.id && (
+                      <div className="mt-3 pt-3 border-t border-slate-700 flex items-end gap-3">
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">Finish Position</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="200"
+                            placeholder="e.g. 15"
+                            value={editFinishPosition}
+                            onChange={(e) => setEditFinishPosition(e.target.value)}
+                            className="w-24 px-2 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">Earnings ($)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 150000"
+                            value={editEarnings}
+                            onChange={(e) => setEditEarnings(e.target.value)}
+                            className="w-32 px-2 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                        <button
+                          onClick={() => savePickResult(pick.id)}
+                          disabled={savingResult || !editEarnings}
+                          className="px-4 py-1.5 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                        >
+                          {savingResult ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingPickId(null);
+                            setEditFinishPosition('');
+                            setEditEarnings('');
+                          }}
+                          className="px-3 py-1.5 text-slate-400 text-sm hover:text-slate-200 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
