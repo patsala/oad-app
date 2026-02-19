@@ -151,10 +151,16 @@ export async function POST(request: Request) {
     
     // Mark player as used
     await query(
-      `UPDATE players 
-       SET used_in_tournament_id = $1, used_in_week = $2 
+      `UPDATE players
+       SET used_in_tournament_id = $1, used_in_week = $2
        WHERE name = $3`,
       [tournament_id, tournament[0].week_number, player_name]
+    );
+
+    // Clear any reservation for this player
+    await query(
+      'DELETE FROM reservations WHERE player_name = $1',
+      [player_name]
     );
     
     return NextResponse.json({ 

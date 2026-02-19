@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Trophy, DollarSign, Target, Clock, Calendar, Users, CheckCircle, XCircle, Search, Lock, TrendingUp, AlertCircle, Award, Zap, Shield } from 'lucide-react';
+import { Trophy, DollarSign, Target, Clock, Calendar, Users, CheckCircle, XCircle, Search, Lock, TrendingUp, AlertCircle, Award, Zap, Shield, Map } from 'lucide-react';
+import SeasonPlannerTab from './SeasonPlannerTab';
 
 // Type definitions
 interface DBPlayer {
@@ -398,6 +399,9 @@ const GolfPoolTool = () => {
   const [editEarnings, setEditEarnings] = useState('');
   const [savingResult, setSavingResult] = useState(false);
 
+  // Reservations state (for rec card badges)
+  const [reservations, setReservations] = useState<{dg_id: number; player_name: string; week_number: number; event_name?: string}[]>([]);
+
   // Load data on mount
   useEffect(() => {
     loadCurrentTournament();
@@ -405,6 +409,7 @@ const GolfPoolTool = () => {
     loadPicks();
     loadSegmentStandings();
     loadRecommendations();
+    loadReservations();
   }, []);
 
   // Filter players based on search
@@ -474,6 +479,18 @@ const GolfPoolTool = () => {
       }
     } catch (error) {
       console.error('Failed to load standings:', error);
+    }
+  };
+
+  const loadReservations = async () => {
+    try {
+      const response = await fetch('/api/reservations');
+      if (response.ok) {
+        const data = await response.json();
+        setReservations(data.reservations || []);
+      }
+    } catch (error) {
+      console.error('Failed to load reservations:', error);
     }
   };
 
@@ -763,6 +780,7 @@ const GolfPoolTool = () => {
             { id: 'weekly', label: 'This Week', icon: Clock },
             { id: 'roster', label: 'Field', icon: Users },
             { id: 'schedule', label: 'Schedule', icon: Calendar },
+            { id: 'planner', label: 'Planner', icon: Map },
             { id: 'stats', label: 'My Picks', icon: Trophy }
           ].map(tab => {
             const Icon = tab.icon;
@@ -992,6 +1010,12 @@ const GolfPoolTool = () => {
                             W{rec.used_week}
                           </span>
                         )}
+                        {!rec.is_used && reservations.find(r => r.dg_id === rec.dg_id) && (
+                          <span className="px-1.5 py-0.5 bg-masters-yellow/15 border border-masters-yellow/30 rounded-full text-[10px] font-semibold text-masters-yellow flex items-center gap-1 shrink-0">
+                            <Calendar className="w-3 h-3" />
+                            Reserved W{reservations.find(r => r.dg_id === rec.dg_id)!.week_number}
+                          </span>
+                        )}
                       </div>
                       <div className="text-right shrink-0 ml-2">
                         <div className="text-xs text-green-300/40">EV</div>
@@ -1171,6 +1195,9 @@ const GolfPoolTool = () => {
 
       {/* SCHEDULE TAB */}
       {activeTab === 'schedule' && <ScheduleTab />}
+
+      {/* SEASON PLANNER TAB */}
+      {activeTab === 'planner' && <SeasonPlannerTab />}
 
       {/* MY PICKS TAB */}
       {activeTab === 'stats' && (
