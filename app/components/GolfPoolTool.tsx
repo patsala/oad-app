@@ -70,6 +70,7 @@ interface PlayerRecommendation {
   reasoning: string;
   strategic_note?: string;
   narrative?: string;
+  ev?: number;
   enrichment?: {
     course_history_adj: number;
     course_fit_adj: number;
@@ -295,6 +296,7 @@ const GolfPoolTool = () => {
   const [loadingRecommendations, setLoadingRecommendations] = useState(true);
   const [nextMajor, setNextMajor] = useState<{ name: string; weeks_away: number } | null>(null);
   const [loadingNarrativeFor, setLoadingNarrativeFor] = useState<number | null>(null);
+  const [narrativeError, setNarrativeError] = useState<number | null>(null);
   
   // Segment standings
   const [segmentStandings, setSegmentStandings] = useState<SegmentStanding[]>([]);
@@ -400,19 +402,21 @@ const GolfPoolTool = () => {
 
   const generateNarrative = async (player: PlayerRecommendation) => {
     setLoadingNarrativeFor(player.dg_id);
-    
+    setNarrativeError(null);
+
     try {
       // Calculate actual course fit comparison
       const courseFitComparison = player.course_fit && player.win_probability
         ? ((player.course_fit / player.win_probability - 1) * 100).toFixed(0)
         : null;
-      
+
       const response = await fetch('/api/generate-narratives', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           players: [{
             ...player,
+            enrichment: player.enrichment,
             course_fit_comparison: courseFitComparison
           }],
           tournament: currentTournament?.event_name || 'this tournament',
@@ -423,23 +427,34 @@ const GolfPoolTool = () => {
           }
         })
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const narrative = data.narratives[player.dg_id];
-        const tier = data.tiers[player.dg_id];
-        
-        // Update the player's narrative AND tier in state
-        setRecommendations(prev => prev.map(p => 
-          p.dg_id === player.dg_id ? { 
-            ...p, 
-            narrative, 
-            recommendation_tier: tier || p.recommendation_tier 
-          } : p
-        ));
+
+      if (!response.ok) {
+        console.error('Narrative API error:', response.status);
+        setNarrativeError(player.dg_id);
+        return;
       }
+
+      const data = await response.json();
+      const narrative = data.narratives?.[player.dg_id];
+      const tier = data.tiers?.[player.dg_id];
+
+      if (!narrative) {
+        console.error('No narrative returned for player:', player.dg_id);
+        setNarrativeError(player.dg_id);
+        return;
+      }
+
+      // Update the player's narrative AND tier in state
+      setRecommendations(prev => prev.map(p =>
+        p.dg_id === player.dg_id ? {
+          ...p,
+          narrative,
+          recommendation_tier: tier || p.recommendation_tier
+        } : p
+      ));
     } catch (error) {
       console.error('Failed to generate narrative:', error);
+      setNarrativeError(player.dg_id);
     } finally {
       setLoadingNarrativeFor(null);
     }
@@ -980,25 +995,32 @@ const GolfPoolTool = () => {
                               </div>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => generateNarrative(rec)}
-                              disabled={loadingNarrativeFor === rec.dg_id}
-                              className="w-full px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 rounded-lg text-sm font-semibold text-emerald-400 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {loadingNarrativeFor === rec.dg_id ? (
-                                <>
-                                  <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-                                  Generating Analysis...
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-                                  </svg>
-                                  Generate AI Analysis
-                                </>
+                            <div>
+                              <button
+                                onClick={() => generateNarrative(rec)}
+                                disabled={loadingNarrativeFor === rec.dg_id}
+                                className="w-full px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 rounded-lg text-sm font-semibold text-emerald-400 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {loadingNarrativeFor === rec.dg_id ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                                    Generating Analysis...
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                      <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                                    </svg>
+                                    {narrativeError === rec.dg_id ? 'Retry AI Analysis' : 'Generate AI Analysis'}
+                                  </>
+                                )}
+                              </button>
+                              {narrativeError === rec.dg_id && (
+                                <div className="mt-1 text-xs text-red-400 text-center">
+                                  Analysis failed. Check API key or try again.
+                                </div>
                               )}
-                            </button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1012,7 +1034,7 @@ const GolfPoolTool = () => {
                           </div>
                         )}
                         <div className="text-xs text-slate-500">
-                          EV: {formatDollar(rec.recommendation_score)}
+                          EV: {rec.ev ? formatDollar(rec.ev) : 'N/A'}
                         </div>
                       </div>
                     </div>

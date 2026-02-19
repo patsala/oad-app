@@ -48,7 +48,7 @@ function calculateEnhancedEV(
   const effectivePurse = purse * multiplier;
   
   // Apply course adjustments to probabilities
-  const adjustmentFactor = 1 + (courseHistoryAdj + courseFitAdj) / 3; // Normalize adjustment
+  const adjustmentFactor = 1 + (courseHistoryAdj * 0.5) + (courseFitAdj * 0.3);
   const adjustedWinProb = Math.min(1, Math.max(0, winProb * adjustmentFactor));
   const adjustedTop5Prob = Math.min(1, Math.max(0, top5Prob * adjustmentFactor));
   const adjustedTop10Prob = Math.min(1, Math.max(0, top10Prob * adjustmentFactor));
@@ -228,7 +228,7 @@ export async function GET() {
       const skillMatchScore = enrichData ? calculateSkillMatchScore(enrichData, courseType) : 0;
       
       // Calculate final ranking score (EV + skill match bonus)
-      const rankingScore = ev * (1 + skillMatchScore * 0.1); // 10% bonus for skill match
+      const rankingScore = ev; // Pure EV ranking - skill match is informational only
       
       preliminaryRecs.push({
         name: dbPlayer.name,
@@ -292,6 +292,7 @@ export async function GET() {
       
       recommendations.push({
         ...player,
+        ev: player.ev,
         recommendation_score: player.ranking_score,
         recommendation_tier: tier,
         reasoning: reasoning
