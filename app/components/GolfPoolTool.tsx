@@ -103,9 +103,11 @@ const TournamentFieldTab = () => {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<FieldSortKey>('owgr');
   const [sortAsc, setSortAsc] = useState(true);
+  const [usedPlayerNames, setUsedPlayerNames] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadField();
+    loadUsedPlayers();
   }, []);
 
   const loadField = async () => {
@@ -120,6 +122,19 @@ const TournamentFieldTab = () => {
     } catch (error) {
       console.error('Failed to load field:', error);
       setLoading(false);
+    }
+  };
+
+  const loadUsedPlayers = async () => {
+    try {
+      const response = await fetch('/api/picks');
+      if (response.ok) {
+        const data = await response.json();
+        const names = new Set<string>((data.picks || []).map((p: any) => p.player_name));
+        setUsedPlayerNames(names);
+      }
+    } catch (error) {
+      console.error('Failed to load picks:', error);
     }
   };
 
@@ -186,16 +201,23 @@ const TournamentFieldTab = () => {
         </div>
 
         <div className="space-y-1">
-          {sortedField.map((player, idx) => (
+          {sortedField.map((player, idx) => {
+            const isUsed = usedPlayerNames.has(player.name);
+            return (
             <div
               key={player.dg_id}
-              className="bg-slate-800/50 rounded-lg px-4 py-3 flex items-center justify-between hover:bg-slate-800/70 transition-all"
+              className={`rounded-lg px-4 py-3 flex items-center justify-between transition-all ${
+                isUsed ? 'bg-slate-800/30 opacity-50' : 'bg-slate-800/50 hover:bg-slate-800/70'
+              }`}
             >
               <div className="flex items-center gap-4">
                 <div className="text-slate-500 font-mono w-8 text-sm">{idx + 1}</div>
                 <div>
-                  <div className="font-bold text-sm">{player.name}</div>
-                  <div className="text-xs text-slate-500">{player.country}</div>
+                  <div className={`font-bold text-sm ${isUsed ? 'line-through text-slate-500' : ''}`}>{player.name}</div>
+                  <div className="text-xs text-slate-500">
+                    {player.country}
+                    {isUsed && <span className="ml-2 text-amber-500/70">USED</span>}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-6">
@@ -222,7 +244,8 @@ const TournamentFieldTab = () => {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -596,6 +619,7 @@ const GolfPoolTool = () => {
         setSearchTerm('');
         
         loadPlayers();
+        loadPicks();
         loadRecommendations();
       } else {
         setSubmitMessage({ 
