@@ -284,7 +284,12 @@ const SeasonPlannerTab = () => {
       ]);
 
       setTournaments(tourData.tournaments || []);
-      setPlayers((playerData.players || []).sort((a: Player, b: Player) => (a.owgr_rank || 999) - (b.owgr_rank || 999)));
+      const tierOrder: Record<string, number> = { 'Elite': 0, 'Tier 1': 1, 'Tier 2': 2, 'Tier 3': 3 };
+      setPlayers((playerData.players || []).sort((a: Player, b: Player) => {
+        const tierDiff = (tierOrder[a.tier] ?? 4) - (tierOrder[b.tier] ?? 4);
+        if (tierDiff !== 0) return tierDiff;
+        return (a.owgr_rank || 999) - (b.owgr_rank || 999);
+      }));
       setPicks(pickData.picks || []);
       setReservations(reserveData.reservations || []);
       setLoading(false);
@@ -319,10 +324,6 @@ const SeasonPlannerTab = () => {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
-    }
-    // Show all when searching, otherwise top 100
-    if (!searchTerm) {
-      filtered = filtered.slice(0, 100);
     }
     return filtered;
   }, [players, searchTerm]);
@@ -489,27 +490,38 @@ const SeasonPlannerTab = () => {
                 />
               </div>
 
-              {/* Player List */}
+              {/* Player List (grouped by tier) */}
               <div className="space-y-1 max-h-[60vh] overflow-y-auto pr-1">
-                {filteredPlayers.map(player => {
-                  const isUsed = !!player.used_in_tournament_id;
-                  const reservation = reservationByDgId.get(player.dg_id);
+                {['Elite', 'Tier 1', 'Tier 2', 'Tier 3'].map(tier => {
+                  const tierPlayers = filteredPlayers.filter(p => p.tier === tier);
+                  if (tierPlayers.length === 0) return null;
                   return (
-                    <DraggablePlayerCard
-                      key={player.dg_id}
-                      player={player}
-                      isUsed={isUsed}
-                      reservation={reservation}
-                      isSelected={selectedPlayer === player.dg_id}
-                      onTap={() => !isUsed && handlePlayerTap(player.dg_id)}
-                    />
+                    <div key={tier}>
+                      <div className="text-[10px] font-bold text-green-300/40 uppercase tracking-wider mt-2 mb-1 px-1">
+                        {tier} ({tierPlayers.length})
+                      </div>
+                      {tierPlayers.map(player => {
+                        const isUsed = !!player.used_in_tournament_id;
+                        const reservation = reservationByDgId.get(player.dg_id);
+                        return (
+                          <DraggablePlayerCard
+                            key={player.dg_id}
+                            player={player}
+                            isUsed={isUsed}
+                            reservation={reservation}
+                            isSelected={selectedPlayer === player.dg_id}
+                            onTap={() => !isUsed && handlePlayerTap(player.dg_id)}
+                          />
+                        );
+                      })}
+                    </div>
                   );
                 })}
               </div>
 
-              {!searchTerm && players.length > 100 && (
+              {!searchTerm && (
                 <p className="text-[10px] text-green-300/30 mt-2 text-center">
-                  Showing top 100 by OWGR. Search to find more.
+                  {players.length} players available
                 </p>
               )}
             </div>
