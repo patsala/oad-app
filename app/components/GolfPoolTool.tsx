@@ -296,7 +296,7 @@ const GolfPoolTool = () => {
   const [loadingRecommendations, setLoadingRecommendations] = useState(true);
   const [nextMajor, setNextMajor] = useState<{ name: string; weeks_away: number } | null>(null);
   const [loadingNarrativeFor, setLoadingNarrativeFor] = useState<number | null>(null);
-  const [narrativeError, setNarrativeError] = useState<number | null>(null);
+  const [narrativeError, setNarrativeError] = useState<{ playerId: number; message: string } | null>(null);
   
   // Segment standings
   const [segmentStandings, setSegmentStandings] = useState<SegmentStanding[]>([]);
@@ -429,8 +429,10 @@ const GolfPoolTool = () => {
       });
 
       if (!response.ok) {
-        console.error('Narrative API error:', response.status);
-        setNarrativeError(player.dg_id);
+        const errData = await response.json().catch(() => ({}));
+        const msg = errData.error || `API error: ${response.status}`;
+        console.error('Narrative API error:', msg, errData.details);
+        setNarrativeError({ playerId: player.dg_id, message: msg });
         return;
       }
 
@@ -440,7 +442,7 @@ const GolfPoolTool = () => {
 
       if (!narrative) {
         console.error('No narrative returned for player:', player.dg_id);
-        setNarrativeError(player.dg_id);
+        setNarrativeError({ playerId: player.dg_id, message: 'No narrative returned from API' });
         return;
       }
 
@@ -454,7 +456,7 @@ const GolfPoolTool = () => {
       ));
     } catch (error) {
       console.error('Failed to generate narrative:', error);
-      setNarrativeError(player.dg_id);
+      setNarrativeError({ playerId: player.dg_id, message: 'Network error' });
     } finally {
       setLoadingNarrativeFor(null);
     }
@@ -1011,13 +1013,13 @@ const GolfPoolTool = () => {
                                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                       <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
                                     </svg>
-                                    {narrativeError === rec.dg_id ? 'Retry AI Analysis' : 'Generate AI Analysis'}
+                                    {narrativeError?.playerId === rec.dg_id ? 'Retry AI Analysis' : 'Generate AI Analysis'}
                                   </>
                                 )}
                               </button>
-                              {narrativeError === rec.dg_id && (
+                              {narrativeError?.playerId === rec.dg_id && (
                                 <div className="mt-1 text-xs text-red-400 text-center">
-                                  Analysis failed. Check API key or try again.
+                                  {narrativeError.message}
                                 </div>
                               )}
                             </div>

@@ -13,47 +13,59 @@ export async function POST(request: Request) {
     
     // Build rich context for each player
     const enrichedPlayerDescriptions = players.map((p: any, i: number) => {
-      const enrichment = p.enrichment || {};
-      
+      const raw = p.enrichment || {};
+      // Ensure all enrichment values are numbers (DB may return strings)
+      const enrichment = {
+        sg_putt: Number(raw.sg_putt) || 0,
+        sg_app: Number(raw.sg_app) || 0,
+        sg_ott: Number(raw.sg_ott) || 0,
+        sg_arg: Number(raw.sg_arg) || 0,
+        sg_total: Number(raw.sg_total) || 0,
+        course_history_adj: Number(raw.course_history_adj) || 0,
+        course_fit_adj: Number(raw.course_fit_adj) || 0,
+        baseline_pred: Number(raw.baseline_pred) || 0,
+        final_pred: Number(raw.final_pred) || 0,
+      };
+
       // Identify elite skills
       const eliteSkills = [];
       if (enrichment.sg_putt > 0.4) eliteSkills.push('Elite Putter');
       if (enrichment.sg_app > 0.8) eliteSkills.push('Elite Ball-Striker');
       if (enrichment.sg_ott > 0.6) eliteSkills.push('Elite Off-the-Tee');
       if (enrichment.sg_arg > 0.3) eliteSkills.push('Elite Scrambler');
-      
+
       // Identify strengths and weaknesses
       const skills = [
-        { name: 'Putting', value: enrichment.sg_putt || 0 },
-        { name: 'Approach', value: enrichment.sg_app || 0 },
-        { name: 'Off-the-Tee', value: enrichment.sg_ott || 0 },
-        { name: 'Short Game', value: enrichment.sg_arg || 0 }
+        { name: 'Putting', value: enrichment.sg_putt },
+        { name: 'Approach', value: enrichment.sg_app },
+        { name: 'Off-the-Tee', value: enrichment.sg_ott },
+        { name: 'Short Game', value: enrichment.sg_arg }
       ].sort((a, b) => b.value - a.value);
-      
+
       const topSkill = skills[0];
       const weakSkill = skills[skills.length - 1];
-      
+
       // Course fit analysis
-      const courseHistBoost = enrichment.course_history_adj 
+      const courseHistBoost = enrichment.course_history_adj
         ? ((enrichment.course_history_adj * 100).toFixed(1) + '% course history boost')
         : 'no course history data';
-      
-      const courseFitAdj = enrichment.course_fit_adj 
+
+      const courseFitAdj = enrichment.course_fit_adj
         ? ((enrichment.course_fit_adj * 100).toFixed(1) + '% fit adjustment')
         : 'neutral course fit';
-      
+
       return `
 ${i+1}. ${p.name} (${p.tier}, World #${p.owgr_rank})
-   Win Odds: +${p.win_odds} | Win Prob: ${(p.win_probability * 100).toFixed(1)}%
-   Top 5: ${(p.top_5_probability * 100).toFixed(1)}% | Top 10: ${(p.top_10_probability * 100).toFixed(1)}%
-   Expected Value: $${(p.recommendation_score / 1000).toFixed(0)}k
-   
+   Win Odds: +${p.win_odds} | Win Prob: ${(Number(p.win_probability) * 100).toFixed(1)}%
+   Top 5: ${(Number(p.top_5_probability) * 100).toFixed(1)}% | Top 10: ${(Number(p.top_10_probability) * 100).toFixed(1)}%
+   Expected Value: $${(Number(p.ev || p.recommendation_score) / 1000).toFixed(0)}k
+
    SKILL PROFILE:
    - Overall SG: ${enrichment.sg_total ? enrichment.sg_total.toFixed(2) : 'N/A'} strokes/round
    - Strongest: ${topSkill.name} (${topSkill.value > 0 ? '+' : ''}${topSkill.value.toFixed(2)} SG)
    - Weakest: ${weakSkill.name} (${weakSkill.value > 0 ? '+' : ''}${weakSkill.value.toFixed(2)} SG)
    ${eliteSkills.length > 0 ? '- Elite Skills: ' + eliteSkills.join(', ') : ''}
-   
+
    COURSE FIT:
    - ${courseHistBoost}
    - ${courseFitAdj}
@@ -107,27 +119,41 @@ Response format (valid JSON, no markdown):
         "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 4000,
         messages: [{ role: "user", content: prompt }]
       })
     });
 
     if (!response.ok) {
-      console.error('Claude API error:', response.status, await response.text());
-      return NextResponse.json({ narratives: {}, tiers: {} });
+      const errorText = await response.text();
+      console.error('Claude API error:', response.status, errorText);
+      return NextResponse.json(
+        { error: `Claude API error: ${response.status}`, details: errorText },
+        { status: 502 }
+      );
     }
 
     const data = await response.json();
-    const rawText = data.content?.[0]?.text || '{"narratives":{},"tiers":{}}';
-    
+    const rawText = data.content?.[0]?.text || '';
+
+    if (!rawText) {
+      return NextResponse.json(
+        { error: 'Empty response from Claude API' },
+        { status: 502 }
+      );
+    }
+
     const cleanText = rawText.replace(/```json\n?|```\n?/g, '').trim();
     const result = JSON.parse(cleanText);
-    
+
     return NextResponse.json(result);
-    
+
   } catch (error) {
     console.error('Narrative generation error:', error);
-    return NextResponse.json({ narratives: {}, tiers: {} });
+    return NextResponse.json(
+      { error: 'Narrative generation failed', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
   }
 }
