@@ -196,11 +196,11 @@ const TournamentFieldTab = () => {
             <div className="text-xs text-slate-500">Player</div>
           </div>
           <div className="flex items-center gap-6">
-            <div className="w-16 text-right"><SortHeader label="OWGR" sortKey="owgr" className="justify-end" /></div>
-            <div className="w-20 text-right"><SortHeader label="Win Odds" sortKey="win_odds" className="justify-end" /></div>
-            <div className="w-16 text-right"><SortHeader label="Win %" sortKey="win_probability" className="justify-end" /></div>
-            <div className="w-16 text-right"><SortHeader label="Cut %" sortKey="make_cut_probability" className="justify-end" /></div>
-            <div className="w-20 text-right"><SortHeader label="DK Salary" sortKey="dk_salary" className="justify-end" /></div>
+            <div className="w-16 text-right hidden md:block"><SortHeader label="OWGR" sortKey="owgr" className="justify-end" /></div>
+            <div className="w-20 text-right"><SortHeader label="DK Odds" sortKey="win_odds" className="justify-end" /></div>
+            <div className="w-16 text-right hidden md:block"><SortHeader label="Win %" sortKey="win_probability" className="justify-end" /></div>
+            <div className="w-16 text-right hidden md:block"><SortHeader label="Cut %" sortKey="make_cut_probability" className="justify-end" /></div>
+            <div className="w-20 text-right hidden md:block"><SortHeader label="DK Salary" sortKey="dk_salary" className="justify-end" /></div>
           </div>
         </div>
 
@@ -225,23 +225,23 @@ const TournamentFieldTab = () => {
                 </div>
               </div>
               <div className="flex items-center gap-6">
-                <div className="w-16 text-right">
+                <div className="w-16 text-right hidden md:block">
                   <div className="font-semibold text-sm">#{player.owgr || 'N/A'}</div>
                 </div>
                 <div className="w-20 text-right">
                   <div className="font-semibold text-sm text-emerald-400">{formatOdds(player.win_odds)}</div>
                 </div>
-                <div className="w-16 text-right">
+                <div className="w-16 text-right hidden md:block">
                   <div className="font-semibold text-sm">
                     {player.win_probability != null ? `${(player.win_probability * 100).toFixed(1)}%` : 'N/A'}
                   </div>
                 </div>
-                <div className="w-16 text-right">
+                <div className="w-16 text-right hidden md:block">
                   <div className="font-semibold text-sm">
                     {player.make_cut_probability != null ? `${(player.make_cut_probability * 100).toFixed(0)}%` : 'N/A'}
                   </div>
                 </div>
-                <div className="w-20 text-right">
+                <div className="w-20 text-right hidden md:block">
                   <div className="font-semibold text-sm">
                     {player.dk_salary ? `$${(player.dk_salary / 1000).toFixed(1)}K` : 'N/A'}
                   </div>
@@ -547,8 +547,8 @@ const GolfPoolTool = () => {
           tournament: currentTournament?.event_name || 'this tournament',
           context: {
             week_number: currentTournament?.week_number,
-            next_major: nextMajor,
-            used_players: allPicks
+            segment: currentTournament?.segment,
+            next_major: nextMajor
           }
         })
       });
@@ -646,20 +646,22 @@ const GolfPoolTool = () => {
   };
 
   const getRecommendationColor = (rec: string) => {
+    if (rec.includes("USE NOW")) return "text-green-400";
     if (rec.includes("TOP PICK")) return "text-green-400";
     if (rec.includes("STRONG")) return "text-emerald-400";
     if (rec.includes("SAVE")) return "text-purple-400";
     if (rec.includes("VALUE")) return "text-cyan-400";
     if (rec.includes("PLAYABLE")) return "text-yellow-400";
-    if (rec.includes("CONSIDER")) return "text-cyan-400";
     if (rec.includes("LONGSHOT")) return "text-orange-400";
     return "text-slate-400";
   };
 
   const getRecommendationIcon = (rec: string) => {
+    if (rec.includes("USE NOW")) return Award;
     if (rec.includes("TOP PICK")) return Award;
     if (rec.includes("STRONG")) return Zap;
     if (rec.includes("SAVE")) return Shield;
+    if (rec.includes("LONGSHOT")) return TrendingUp;
     return Target;
   };
 
