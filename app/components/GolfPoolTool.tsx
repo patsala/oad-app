@@ -103,7 +103,7 @@ const TournamentFieldTab = () => {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<FieldSortKey>('owgr');
   const [sortAsc, setSortAsc] = useState(true);
-  const [usedPlayerNames, setUsedPlayerNames] = useState<Set<string>>(new Set());
+  const [usedDgIds, setUsedDgIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     loadField();
@@ -127,14 +127,18 @@ const TournamentFieldTab = () => {
 
   const loadUsedPlayers = async () => {
     try {
-      const response = await fetch('/api/picks');
+      const response = await fetch('/api/players');
       if (response.ok) {
         const data = await response.json();
-        const names = new Set<string>((data.picks || []).map((p: any) => p.player_name));
-        setUsedPlayerNames(names);
+        const ids = new Set<number>(
+          (data.players || [])
+            .filter((p: any) => p.used_in_tournament_id !== null)
+            .map((p: any) => p.dg_id)
+        );
+        setUsedDgIds(ids);
       }
     } catch (error) {
-      console.error('Failed to load picks:', error);
+      console.error('Failed to load players:', error);
     }
   };
 
@@ -202,7 +206,7 @@ const TournamentFieldTab = () => {
 
         <div className="space-y-1">
           {sortedField.map((player, idx) => {
-            const isUsed = usedPlayerNames.has(player.name);
+            const isUsed = usedDgIds.has(player.dg_id);
             return (
             <div
               key={player.dg_id}
