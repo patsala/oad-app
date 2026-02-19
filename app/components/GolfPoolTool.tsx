@@ -720,9 +720,9 @@ const GolfPoolTool = () => {
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8 animate-slide-in">
         <h1 className="text-6xl mb-2 bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-          GOLF POOL COMMAND CENTER
+          PIMENTO COMMAND CENTER
         </h1>
-        <p className="text-slate-400 text-lg">One & Done Earnings Pool • 148 Entries • $22,200 Pot</p>
+        <p className="text-slate-400 text-lg">One & Done Earnings Pool • 171 Entries • $25,650 Pot</p>
       </div>
 
       {/* Segment Standings Bar */}

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Golf Pool Command Center',
+  title: 'Pimento Command Center',
   description: 'One & Done Golf Pool Management Tool',
 };
 
