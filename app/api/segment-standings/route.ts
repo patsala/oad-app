@@ -5,7 +5,7 @@ export async function GET() {
   try {
     // Compute standings live from picks + tournaments so they always reflect
     // the current state without depending on a separately maintained table.
-    const [segmentRows, seasonRow, bonusRows] = await Promise.all([
+    const [segmentRows, seasonRow] = await Promise.all([
       // Per-segment totals
       query(`
         SELECT
@@ -20,9 +20,15 @@ export async function GET() {
       `),
       // Season total across all picks
       query(`SELECT COALESCE(SUM(earnings), 0)::numeric AS season_total FROM picks`),
-      // Keep segment_winner_bonus from the stored table (manually maintained)
-      query(`SELECT segment, segment_winner_bonus FROM segment_standings`),
     ]);
+
+    // Bonus data is optional — don't let a missing table fail the whole endpoint
+    let bonusRows: any[] = [];
+    try {
+      bonusRows = await query(`SELECT segment, segment_winner_bonus FROM segment_standings`);
+    } catch {
+      // segment_standings table may not exist yet
+    }
 
     const seasonTotal = Number(seasonRow[0]?.season_total ?? 0);
     const bonusMap = new Map(bonusRows.map((r: any) => [r.segment, r.segment_winner_bonus]));
