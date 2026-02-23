@@ -144,11 +144,24 @@ export async function GET() {
     const allEnrichment = await query(
       'SELECT * FROM player_enrichment_cache'
     );
-    
+
     const enrichmentMap = new Map();
     allEnrichment.forEach((e: any) => {
       enrichmentMap.set(e.dg_id, e);
     });
+
+    // Fetch form data (optional — don't fail if table doesn't exist yet)
+    const formMap = new Map<number, any>();
+    try {
+      const formRows = await query(
+        `SELECT dg_id, form_score, form_category, last_5_results,
+                top_10_last_5, missed_cuts_last_5, withdrawals_last_5
+         FROM player_form`
+      );
+      formRows.forEach((f: any) => formMap.set(f.dg_id, f));
+    } catch {
+      // player_form table not yet created
+    }
     
     // Fetch field, odds, probabilities, and DFS salaries
     const [fieldResponse, oddsResponse, probabilitiesResponse, dfsResponse] = await Promise.all([
@@ -262,7 +275,19 @@ export async function GET() {
           driving_dist: enrichData.driving_dist,
           baseline_pred: enrichData.baseline_pred,
           final_pred: enrichData.final_pred
-        } : null
+        } : null,
+        form: (() => {
+          const f = formMap.get(fieldPlayer.dg_id);
+          if (!f) return null;
+          return {
+            score: Number(f.form_score),
+            category: f.form_category,
+            top_10_last_5: Number(f.top_10_last_5),
+            missed_cuts_last_5: Number(f.missed_cuts_last_5),
+            withdrawals_last_5: Number(f.withdrawals_last_5),
+            last_5_results: f.last_5_results || [],
+          };
+        })()
       });
     }
     

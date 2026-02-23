@@ -43,7 +43,15 @@ export async function GET(request: NextRequest) {
     results.enrichment = { error: error instanceof Error ? error.message : 'Failed' };
   }
 
-  // 4. Auto-complete past tournaments and fetch winners from DataGolf
+  // 4. Sync player form (recent results from last 10 completed events)
+  try {
+    const res = await fetch(`${baseUrl}/api/sync-player-form`, { method: 'POST' });
+    results.form = await res.json();
+  } catch (error) {
+    results.form = { error: error instanceof Error ? error.message : 'Failed' };
+  }
+
+  // 5. Auto-complete past tournaments and fetch winners from DataGolf
   try {
     const res = await fetch(`${baseUrl}/api/update-completed-tournaments`, { method: 'POST' });
     results.completions = await res.json();

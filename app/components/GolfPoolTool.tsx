@@ -75,6 +75,19 @@ interface PlayerRecommendation {
   strategic_note?: string;
   narrative?: string;
   ev?: number;
+  form?: {
+    score: number;
+    category: string;
+    top_10_last_5: number;
+    missed_cuts_last_5: number;
+    withdrawals_last_5: number;
+    last_5_results: Array<{
+      event_name: string;
+      finish: string;
+      made_cut: boolean;
+      withdrew: boolean;
+    }>;
+  } | null;
   enrichment?: {
     course_history_adj: number;
     course_fit_adj: number;
@@ -362,6 +375,67 @@ const ScheduleTab = () => {
           ))}
         </div>
       </div>
+    </div>
+  );
+};
+
+// Form Section Component
+const FormSection = ({ form }: { form: NonNullable<PlayerRecommendation['form']> }) => {
+  const [expanded, setExpanded] = React.useState(false);
+
+  const badge =
+    form.category === 'hot' ? { label: '🔥 HOT', cls: 'bg-amber-500/20 border-amber-500/40 text-amber-300' } :
+    form.category === 'cold' ? { label: '🧊 COLD', cls: 'bg-blue-500/20 border-blue-500/40 text-blue-300' } :
+    null;
+
+  const finishIcon = (r: { made_cut: boolean; withdrew: boolean; finish: string }) => {
+    if (r.withdrew) return <span className="text-orange-400">✗</span>;
+    if (!r.made_cut) return <span className="text-red-400">✗</span>;
+    const pos = parseInt(r.finish.replace(/^T/, ''), 10);
+    if (!isNaN(pos) && pos <= 10) return <span className="text-green-400">✓</span>;
+    return <span className="text-green-300/40">·</span>;
+  };
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full flex items-center justify-between text-xs text-green-300/60 hover:text-green-100 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-green-200/60">Recent Form</span>
+          {badge && (
+            <span className={`px-1.5 py-0.5 border rounded-full text-[10px] font-bold ${badge.cls}`}>
+              {badge.label}
+            </span>
+          )}
+          <span className="text-green-300/40">
+            {form.top_10_last_5} top-10 · {form.missed_cuts_last_5} MC · {form.withdrawals_last_5} WD
+          </span>
+        </div>
+        <span className="text-green-300/40">{expanded ? '▲' : '▼'}</span>
+      </button>
+
+      {expanded && form.last_5_results.length > 0 && (
+        <div className="mt-1.5 space-y-0.5 border border-green-800/30 rounded-lg p-2">
+          {form.last_5_results.map((r, i) => (
+            <div key={i} className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                {finishIcon(r)}
+                <span className="text-green-200/60 truncate">{r.event_name}</span>
+              </div>
+              <span className={`font-semibold ml-2 shrink-0 ${
+                r.withdrew ? 'text-orange-400' :
+                !r.made_cut ? 'text-red-400' :
+                parseInt(r.finish.replace(/^T/, ''), 10) <= 10 ? 'text-green-400' :
+                'text-green-200/60'
+              }`}>
+                {r.finish}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -1146,6 +1220,11 @@ const GolfPoolTool = () => {
                         </div>
                       )}
                     </div>
+
+                    {/* Recent Form */}
+                    {rec.form && (
+                      <FormSection form={rec.form} />
+                    )}
 
                     {/* AI Narrative / Generate Button */}
                     <div className="mt-3">
