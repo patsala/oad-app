@@ -5,6 +5,32 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+// Debug: call GET to see the raw DataGolf API response for the most recent completed tournament
+export async function GET() {
+  try {
+    const completed = await query(
+      `SELECT id, event_name, end_date FROM tournaments WHERE is_completed = true ORDER BY end_date DESC LIMIT 1`
+    );
+    if (completed.length === 0) return NextResponse.json({ message: 'No completed tournaments' });
+
+    const t = completed[0];
+    const url = `https://feeds.datagolf.com/historical-raw-data/event-level?tour=pga&season=2026&event_id=${t.id}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    return NextResponse.json({
+      tournament: t.event_name,
+      event_id: t.id,
+      status: res.status,
+      top_level_keys: Object.keys(data),
+      // Show first player from whichever array field exists
+      sample: (data.results || data.scores || data.leaderboard || data.players || [])[0] || null,
+    });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
 // Parse fin_text like "1", "T15", "MC", "WD", "DQ", "MDF" into a numeric position or null
 function parseFinish(finText: string | null | undefined): {
   position: number | null;
@@ -73,7 +99,8 @@ export async function POST() {
           );
           if (!res.ok) return { tournament: t, results: [] };
           const data = await res.json();
-          return { tournament: t, results: data.results || data.leaderboard || [] };
+          const players = data.results || data.scores || data.leaderboard || data.players || [];
+          return { tournament: t, results: players };
         } catch {
           return { tournament: t, results: [] };
         }
@@ -167,7 +194,8 @@ export async function POST() {
       success: true,
       updated,
       tournaments_processed: completedTournaments.length,
-      message: `Updated form for ${updated} players across ${completedTournaments.length} tournaments`
+      message: `Updated form for ${updated} players across ${completedTournaments.length} tournaments`,
+      debug: eventResults.map(e => ({ event: e.tournament.event_name, players_found: e.results.length }))
     });
 
   } catch (error) {
