@@ -16,15 +16,29 @@ export async function GET() {
     const t = completed[0];
     const url = `https://feeds.datagolf.com/historical-raw-data/event-level?tour=pga&season=2026&event_id=${t.id}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`;
     const res = await fetch(url);
-    const data = await res.json();
+    const contentType = res.headers.get('content-type') || '';
+    const rawText = await res.text();
+
+    // Try to parse as JSON; if it fails, return the raw text so we can see what DG sent back
+    let parsed: any = null;
+    let parseError: string | null = null;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch (e) {
+      parseError = String(e);
+    }
 
     return NextResponse.json({
       tournament: t.event_name,
       event_id: t.id,
-      status: res.status,
-      top_level_keys: Object.keys(data),
-      // Show first player from whichever array field exists
-      sample: (data.results || data.scores || data.leaderboard || data.players || [])[0] || null,
+      http_status: res.status,
+      content_type: contentType,
+      parse_error: parseError,
+      // If JSON parsed OK, show structure
+      top_level_keys: parsed ? Object.keys(parsed) : null,
+      sample: parsed ? (parsed.results || parsed.scores || parsed.leaderboard || parsed.players || [])[0] || null : null,
+      // If HTML/error, show first 500 chars
+      raw_preview: parsed ? null : rawText.slice(0, 500),
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
