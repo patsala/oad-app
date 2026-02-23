@@ -13,7 +13,7 @@ export async function POST() {
     const staleTournaments = await query(
       `SELECT id, event_name, event_id FROM tournaments
        WHERE end_date < CURRENT_DATE
-       AND winner IS NULL`
+       AND (winner IS NULL OR winner LIKE '%,%' OR winner LIKE '%(%)%')`
     );
 
     if (staleTournaments.length === 0) {
@@ -40,12 +40,14 @@ export async function POST() {
 
     function parseWinnerName(raw: string | null): string | null {
       if (!raw) return null;
-      // DataGolf sometimes returns "Last, First" — convert to "First Last"
-      if (raw.includes(',')) {
-        const parts = raw.split(',').map((s: string) => s.trim());
-        return parts.length === 2 ? `${parts[1]} ${parts[0]}` : raw;
+      // Strip trailing " (dg_id)" e.g. "Morikawa, Collin (22085)" → "Morikawa, Collin"
+      const stripped = raw.replace(/\s*\(\d+\)\s*$/, '').trim();
+      // Flip "Last, First" → "First Last"
+      if (stripped.includes(',')) {
+        const parts = stripped.split(',').map((s: string) => s.trim());
+        return parts.length === 2 ? `${parts[1]} ${parts[0]}` : stripped;
       }
-      return raw;
+      return stripped;
     }
 
     const updates: { tournament: string; winner: string | null; source: string }[] = [];

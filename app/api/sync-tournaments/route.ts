@@ -57,6 +57,20 @@ function calculateEndDate(startDate: string): string {
   return start.toISOString().split('T')[0];
 }
 
+// DataGolf returns winners as "Last, First (dg_id)" e.g. "Morikawa, Collin (22085)"
+// Convert to "First Last"
+function parseDgWinnerName(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  // Strip trailing " (12345)"
+  const stripped = raw.replace(/\s*\(\d+\)\s*$/, '').trim();
+  // Flip "Last, First" → "First Last"
+  if (stripped.includes(',')) {
+    const parts = stripped.split(',').map((s: string) => s.trim());
+    return parts.length === 2 ? `${parts[1]} ${parts[0]}` : stripped;
+  }
+  return stripped;
+}
+
 export async function POST() {
   try {
     const response = await fetch(
@@ -123,7 +137,7 @@ export async function POST() {
           scheduleEvent.segment,
           eventType,
           'pga',
-          dgEvent.winner,
+          parseDgWinnerName(dgEvent.winner),
           isCompleted,
           scheduleEvent.week
         ]
