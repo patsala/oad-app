@@ -27,11 +27,11 @@ export async function POST() {
       `UPDATE tournaments SET is_completed = true WHERE end_date < CURRENT_DATE AND is_completed = false`
     );
 
-    // Find tournaments whose end_date has passed and still have no winner (or malformed winner).
+    // Find tournaments whose end_date has passed and still have no winner (or malformed/placeholder winner).
     const staleTournaments = await query(
       `SELECT id, event_name, event_id FROM tournaments
        WHERE end_date < CURRENT_DATE
-       AND (winner IS NULL OR winner = '' OR winner LIKE '%,%' OR winner LIKE '%(%)%')`
+       AND (winner IS NULL OR winner = '' OR winner = 'TBD' OR winner LIKE '%,%' OR winner LIKE '%(%)%')`
     );
 
     if (staleTournaments.length === 0) {

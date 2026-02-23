@@ -60,7 +60,7 @@ function calculateEndDate(startDate: string): string {
 // DataGolf returns winners as "Last, First (dg_id)" e.g. "Morikawa, Collin (22085)"
 // Convert to "First Last"
 function parseDgWinnerName(raw: string | null | undefined): string | null {
-  if (!raw) return null;
+  if (!raw || raw === 'TBD') return null;
   // Strip trailing " (12345)"
   const stripped = raw.replace(/\s*\(\d+\)\s*$/, '').trim();
   // Flip "Last, First" → "First Last"
