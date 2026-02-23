@@ -4,6 +4,21 @@ import { query } from '@/app/lib/db';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// Diagnostic: returns current DB state for past tournaments without modifying anything
+export async function GET() {
+  try {
+    const rows = await query(
+      `SELECT id, event_name, end_date, is_completed, winner
+       FROM tournaments
+       WHERE end_date < CURRENT_DATE
+       ORDER BY end_date ASC`
+    );
+    return NextResponse.json({ past_tournaments: rows });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
 export async function POST() {
   try {
     // First: ensure all past tournaments are marked is_completed regardless of winner status.
