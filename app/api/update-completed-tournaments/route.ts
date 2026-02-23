@@ -85,7 +85,7 @@ export async function POST() {
       if (!winner) {
         try {
           const histResponse = await fetch(
-            `https://feeds.datagolf.com/historical-raw-data/event-level?tour=pga&season=2026&event_id=${tournament.id}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
+            `https://feeds.datagolf.com/historical-event-data/events?tour=pga&year=2026&event_id=${tournament.id}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
           );
           if (histResponse.ok) {
             const histData = await histResponse.json();

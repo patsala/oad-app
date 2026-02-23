@@ -34,7 +34,7 @@ export async function GET() {
 
       // Try the 3 most recent regular events (some may not be indexed yet)
       for (const evt of regularCompleted.slice(0, 3)) {
-        const url = `https://feeds.datagolf.com/historical-raw-data/event-level?tour=pga&season=${season}&event_id=${evt.event_id}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`;
+        const url = `https://feeds.datagolf.com/historical-event-data/events?tour=pga&year=${season}&event_id=${evt.event_id}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`;
         const res = await fetch(url);
         const rawText = await res.text();
         let parsed: any = null;
@@ -111,7 +111,7 @@ async function fetchEventResults(
 ): Promise<{ event_name: string; end_date: string; results: any[] }> {
   try {
     const res = await fetch(
-      `https://feeds.datagolf.com/historical-raw-data/event-level?tour=pga&season=${season}&event_id=${eventId}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
+      `https://feeds.datagolf.com/historical-event-data/events?tour=pga&year=${season}&event_id=${eventId}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
     );
     if (!res.ok) return { event_name: eventName, end_date: endDate, results: [] };
     const data = await res.json();
