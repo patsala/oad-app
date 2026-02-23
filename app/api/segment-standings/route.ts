@@ -6,17 +6,18 @@ export async function GET() {
     // Compute standings live from picks + tournaments so they always reflect
     // the current state without depending on a separately maintained table.
     const [segmentRows, seasonRow] = await Promise.all([
-      // Per-segment totals
+      // Per-segment totals — seed all 4 segments so Q2/Q3/Q4 show as $0 placeholders
       query(`
         SELECT
-          t.segment,
+          segs.segment,
           COALESCE(SUM(p.earnings), 0)::numeric          AS total_earnings,
           COUNT(CASE WHEN p.finish_position IS NOT NULL THEN 1 END)::int AS events_completed,
           MIN(CASE WHEN p.finish_position IS NOT NULL THEN p.finish_position END) AS best_finish
-        FROM picks p
-        JOIN tournaments t ON p.tournament_id = t.id
-        GROUP BY t.segment
-        ORDER BY t.segment ASC
+        FROM (VALUES ('Q1'), ('Q2'), ('Q3'), ('Q4')) AS segs(segment)
+        LEFT JOIN tournaments t ON t.segment = segs.segment
+        LEFT JOIN picks p ON p.tournament_id = t.id
+        GROUP BY segs.segment
+        ORDER BY segs.segment ASC
       `),
       // Season total across all picks
       query(`SELECT COALESCE(SUM(earnings), 0)::numeric AS season_total FROM picks`),
