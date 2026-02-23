@@ -10,9 +10,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const protocol = process.env.VERCEL_URL ? 'https' : 'http';
-  const host = process.env.VERCEL_URL || 'localhost:3000';
-  const baseUrl = `${protocol}://${host}`;
+  // APP_URL must be set in Vercel env vars to the stable production URL
+  // (e.g. https://oad-app.vercel.app). VERCEL_URL alone points to the
+  // deployment-specific subdomain which may have Deployment Protection enabled.
+  const baseUrl = process.env.APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
   const results: Record<string, any> = {};
   const startTime = Date.now();
