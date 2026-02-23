@@ -108,9 +108,10 @@ export async function POST() {
       const multiplier = scheduleEvent.multiplier || 1.0;
       const purse = scheduleEvent.purse;
       const eventType = scheduleEvent.type;
-      const isCompleted = dgEvent.status === 'completed';
       const city = parseCity(dgEvent.location || '');
       const endDate = calculateEndDate(dgEvent.start_date);
+      const today = new Date().toISOString().split('T')[0];
+      const isCompleted = dgEvent.status === 'completed' || endDate < today;
       
       await query(
         `INSERT INTO tournaments (

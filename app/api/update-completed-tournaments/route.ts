@@ -6,14 +6,17 @@ export const runtime = 'nodejs';
 
 export async function POST() {
   try {
-    // Find tournaments whose end_date has passed and still have no winner.
-    // We intentionally include already-completed ones (winner IS NULL) because
-    // current-tournament/route.ts auto-marks them is_completed=true on every
-    // page load — before the winner fetch has a chance to run.
+    // First: ensure all past tournaments are marked is_completed regardless of winner status.
+    // sync-tournaments may store is_completed=false if DataGolf's status string isn't exactly 'completed'.
+    await query(
+      `UPDATE tournaments SET is_completed = true WHERE end_date < CURRENT_DATE AND is_completed = false`
+    );
+
+    // Find tournaments whose end_date has passed and still have no winner (or malformed winner).
     const staleTournaments = await query(
       `SELECT id, event_name, event_id FROM tournaments
        WHERE end_date < CURRENT_DATE
-       AND (winner IS NULL OR winner LIKE '%,%' OR winner LIKE '%(%)%')`
+       AND (winner IS NULL OR winner = '' OR winner LIKE '%,%' OR winner LIKE '%(%)%')`
     );
 
     if (staleTournaments.length === 0) {
