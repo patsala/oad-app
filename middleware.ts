@@ -14,8 +14,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow cron endpoint (called by Vercel with CRON_SECRET, not a browser session)
-  if (pathname.startsWith('/api/cron')) {
+  // Allow internal/admin API endpoints (cron, sync, manual trigger)
+  if (
+    pathname.startsWith('/api/cron') ||
+    pathname.startsWith('/api/sync-') ||
+    pathname.startsWith('/api/update-completed-tournaments') ||
+    pathname.startsWith('/api/migrate-')
+  ) {
     return NextResponse.next();
   }
 
