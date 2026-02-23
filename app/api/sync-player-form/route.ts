@@ -5,61 +5,6 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-// Words in event names that indicate non-scoring/non-regular tour events
-const NON_REGULAR_KEYWORDS = ['q-school', 'qualifying', 'korn ferry', 'champions', 'dp world'];
-
-function isRegularPgaEvent(eventName: string): boolean {
-  const lower = eventName.toLowerCase();
-  return !NON_REGULAR_KEYWORDS.some(kw => lower.includes(kw));
-}
-
-// Debug: probe the historical API across multiple seasons to find working data
-export async function GET() {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const results: any[] = [];
-
-    for (const season of [2025, 2024]) {
-      const schedRes = await fetch(
-        `https://feeds.datagolf.com/get-schedule?tour=pga&season=${season}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
-      );
-      if (!schedRes.ok) { results.push({ season, error: `Schedule ${schedRes.status}` }); continue; }
-      const schedData = await schedRes.json();
-
-      const regularCompleted = (schedData.schedule || [])
-        .filter((e: any) => e.start_date && e.start_date < today && e.event_id && isRegularPgaEvent(e.event_name || ''))
-        .sort((a: any, b: any) => b.start_date.localeCompare(a.start_date));
-
-      if (regularCompleted.length === 0) { results.push({ season, error: 'No regular completed events' }); continue; }
-
-      // Try the 3 most recent regular events (some may not be indexed yet)
-      for (const evt of regularCompleted.slice(0, 3)) {
-        const url = `https://feeds.datagolf.com/historical-event-data/events?tour=pga&year=${season}&event_id=${evt.event_id}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`;
-        const res = await fetch(url);
-        const rawText = await res.text();
-        let parsed: any = null;
-        try { parsed = JSON.parse(rawText); } catch { /* HTML error page */ }
-        const players = parsed ? (parsed.results || parsed.scores || parsed.leaderboard || parsed.players || []) : [];
-        results.push({
-          season,
-          event: evt.event_name,
-          event_id: evt.event_id,
-          http_status: res.status,
-          players_found: players.length,
-          top_level_keys: parsed ? Object.keys(parsed) : null,
-          sample_player: players[0] ?? null,
-          raw_preview: parsed ? null : rawText.slice(0, 200),
-        });
-        if (players.length > 0) break; // Found working data — stop probing
-      }
-    }
-
-    return NextResponse.json({ probe_results: results });
-  } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
-  }
-}
-
 // Parse fin_text like "1", "T15", "MC", "WD", "DQ", "MDF" into a numeric position or null
 function parseFinish(finText: string | null | undefined): {
   position: number | null;
@@ -103,97 +48,124 @@ function formCategory(score: number): string {
   return 'cold';
 }
 
-async function fetchEventResults(
-  eventId: string | number,
-  season: number,
-  eventName: string,
-  endDate: string
-): Promise<{ event_name: string; end_date: string; results: any[] }> {
+// Debug: show event-list so we can verify correct event IDs and structure
+export async function GET() {
   try {
     const res = await fetch(
-      `https://feeds.datagolf.com/historical-event-data/events?tour=pga&year=${season}&event_id=${eventId}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
+      `https://feeds.datagolf.com/historical-event-data/event-list?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
     );
-    if (!res.ok) return { event_name: eventName, end_date: endDate, results: [] };
-    const data = await res.json();
-    const players = data.results || data.scores || data.leaderboard || data.players || [];
-    return { event_name: eventName, end_date: endDate, results: players };
-  } catch {
-    return { event_name: eventName, end_date: endDate, results: [] };
+    const rawText = await res.text();
+    let parsed: any = null;
+    try { parsed = JSON.parse(rawText); } catch { /* not JSON */ }
+
+    if (!parsed) {
+      return NextResponse.json({ http_status: res.status, raw_preview: rawText.slice(0, 500) });
+    }
+
+    // Show the most recent 10 events so we can verify IDs and years
+    const events: any[] = parsed.events || parsed || [];
+    const sorted = [...events]
+      .filter((e: any) => e.calendar_year >= 2025)
+      .sort((a: any, b: any) => {
+        const da = a.date || a.start_date || '';
+        const db = b.date || b.start_date || '';
+        return db.localeCompare(da);
+      })
+      .slice(0, 10);
+
+    return NextResponse.json({
+      http_status: res.status,
+      top_level_keys: Object.keys(parsed),
+      total_events: events.length,
+      recent_events: sorted,
+      sample_raw: events[0],
+    });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
 
 export async function POST() {
   try {
-    const today = new Date().toISOString().split('T')[0];
-
-    // 1. Get 2026 completed events from our DB
-    const completed2026 = await query(
-      `SELECT id, event_name, end_date FROM tournaments WHERE is_completed = true ORDER BY end_date DESC LIMIT 10`
+    // Step 1: Fetch the event-list to get correct event IDs for the historical API
+    const eventListRes = await fetch(
+      `https://feeds.datagolf.com/historical-event-data/event-list?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
     );
+    if (!eventListRes.ok) {
+      return NextResponse.json({ error: `event-list fetch failed: ${eventListRes.status}` }, { status: 500 });
+    }
+    const eventListData = await eventListRes.json();
+    const allHistoricalEvents: any[] = eventListData.events || eventListData || [];
 
-    // 2. Fetch 2025 schedule from DataGolf to fill out the last-5 window
-    let events2025: { event_id: string; event_name: string; end_date: string }[] = [];
-    try {
-      const schedRes = await fetch(
-        `https://feeds.datagolf.com/get-schedule?tour=pga&season=2025&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
-      );
-      if (schedRes.ok) {
-        const schedData = await schedRes.json();
-        // Filter to completed PGA Tour events, sort most recent first
-        events2025 = (schedData.schedule || [])
-          .filter((e: any) => e.start_date && e.start_date < today && e.event_id && isRegularPgaEvent(e.event_name || ''))
-          .sort((a: any, b: any) => b.start_date.localeCompare(a.start_date))
-          .slice(0, 10)
-          .map((e: any) => ({
-            event_id: e.event_id,
-            event_name: e.event_name,
-            // Approximate end date (start + 3 days)
-            end_date: (() => {
-              const d = new Date(e.start_date);
-              d.setDate(d.getDate() + 3);
-              return d.toISOString().split('T')[0];
-            })(),
-          }));
-      }
-    } catch {
-      // 2025 schedule unavailable — continue with whatever 2026 data we have
+    // Step 2: Filter to PGA Tour events from 2025 and 2026, sorted most recent first
+    const today = new Date().toISOString().split('T')[0];
+    const recentEvents = allHistoricalEvents
+      .filter((e: any) => {
+        const year = e.calendar_year || e.year;
+        const date = e.date || e.start_date || '';
+        return (year === 2025 || year === 2026) && date < today;
+      })
+      .sort((a: any, b: any) => {
+        const da = a.date || a.start_date || '';
+        const db = b.date || b.start_date || '';
+        return db.localeCompare(da);
+      })
+      .slice(0, 12); // Fetch up to 12 recent events to get 5 results per player
+
+    if (recentEvents.length === 0) {
+      return NextResponse.json({ success: true, updated: 0, message: 'No recent events in historical event-list' });
     }
 
-    // 3. Fetch results for all events in parallel
-    const [results2026, results2025] = await Promise.all([
-      Promise.all(
-        completed2026.map((t: any) => fetchEventResults(t.id, 2026, t.event_name, t.end_date))
-      ),
-      Promise.all(
-        events2025.map(e => fetchEventResults(e.event_id, 2025, e.event_name, e.end_date))
-      ),
-    ]);
+    // Step 3: Fetch results for all recent events in parallel
+    const eventResults = await Promise.all(
+      recentEvents.map(async (evt: any) => {
+        const eventId = evt.event_id;
+        const year = evt.calendar_year || evt.year;
+        const eventName = evt.event_name || evt.name || `Event ${eventId}`;
+        const endDate = evt.date || evt.start_date || '';
 
-    // 4. Merge all event results, sorted most recent first
-    // 2026 events are more recent than 2025 events
-    const allEventResults = [
-      ...results2026.filter(e => e.results.length > 0),
-      ...results2025.filter(e => e.results.length > 0),
-    ];
+        try {
+          const res = await fetch(
+            `https://feeds.datagolf.com/historical-event-data/events?tour=pga&event_id=${eventId}&year=${year}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
+          );
+          if (!res.ok) return { event_name: eventName, end_date: endDate, results: [] };
+          const data = await res.json();
+          // The endpoint returns event-level finishes — figure out the array field
+          const players = data.results || data.scores || data.leaderboard || data.players || data.event_results || [];
+          return { event_name: eventName, end_date: endDate, results: players };
+        } catch {
+          return { event_name: eventName, end_date: endDate, results: [] };
+        }
+      })
+    );
 
     const debug = {
-      events_2026_fetched: completed2026.length,
-      events_2026_with_data: results2026.filter(e => e.results.length > 0).length,
-      events_2025_fetched: events2025.length,
-      events_2025_with_data: results2025.filter(e => e.results.length > 0).length,
-      events_by_name: allEventResults.map(e => ({ event: e.event_name, players: e.results.length })),
+      events_fetched: recentEvents.length,
+      events_with_data: eventResults.filter(e => e.results.length > 0).length,
+      events_by_name: eventResults.map(e => ({ event: e.event_name, players: e.results.length })),
     };
 
-    if (allEventResults.length === 0) {
+    const withData = eventResults.filter(e => e.results.length > 0);
+
+    if (withData.length === 0) {
+      // Return a sample of the raw response to debug field names
+      const sampleRes = await fetch(
+        `https://feeds.datagolf.com/historical-event-data/events?tour=pga&event_id=${recentEvents[0].event_id}&year=${recentEvents[0].calendar_year || recentEvents[0].year}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
+      );
+      const sampleText = await sampleRes.text();
+      let sampleParsed: any = null;
+      try { sampleParsed = JSON.parse(sampleText); } catch { /* not JSON */ }
       return NextResponse.json({
-        success: true,
+        success: false,
         updated: 0,
-        message: 'No historical data available from DataGolf yet',
+        message: 'Events found but no player results returned',
         debug,
+        sample_response_keys: sampleParsed ? Object.keys(sampleParsed) : null,
+        sample_response_preview: sampleParsed ?? sampleText.slice(0, 300),
       });
     }
 
-    // 5. Build per-player map: dg_id → all results sorted most recent first
+    // Step 4: Build per-player map: dg_id → all results sorted most recent first
     const playerResultsMap = new Map<number, {
       event_name: string;
       end_date: string;
@@ -203,30 +175,25 @@ export async function POST() {
       withdrew: boolean;
     }[]>();
 
-    // Keep track of raw results for player name lookup
-    const allRawResults: any[] = allEventResults.flatMap(e => e.results);
+    const allRawResults: any[] = withData.flatMap(e => e.results);
 
-    for (const { event_name, end_date, results } of allEventResults) {
+    for (const { event_name, end_date, results } of withData) {
       for (const r of results) {
         const dgId = r.dg_id;
         if (!dgId) continue;
 
-        const parsed = parseFinish(r.fin_text);
+        const finText = r.fin_text ?? r.finish ?? r.position_text ?? String(r.position ?? '');
+        const parsed = parseFinish(finText);
 
         if (!playerResultsMap.has(dgId)) playerResultsMap.set(dgId, []);
-        playerResultsMap.get(dgId)!.push({
-          event_name,
-          end_date,
-          ...parsed,
-        });
+        playerResultsMap.get(dgId)!.push({ event_name, end_date, ...parsed });
       }
     }
 
-    // 6. Compute form for each player and upsert
+    // Step 5: Compute form and upsert
     let updated = 0;
 
     for (const [dgId, allResults] of playerResultsMap) {
-      // Results are already ordered most-recent-first (2026 before 2025)
       const last5 = allResults.slice(0, 5);
 
       const top10 = last5.filter(r => r.position !== null && r.position <= 10).length;
