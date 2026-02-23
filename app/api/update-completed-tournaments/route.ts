@@ -6,86 +6,80 @@ export const runtime = 'nodejs';
 
 export async function POST() {
   try {
-    // Find tournaments whose end_date has passed but aren't marked complete
+    // Find tournaments whose end_date has passed and still have no winner.
+    // We intentionally include already-completed ones (winner IS NULL) because
+    // current-tournament/route.ts auto-marks them is_completed=true on every
+    // page load — before the winner fetch has a chance to run.
     const staleTournaments = await query(
       `SELECT id, event_name, event_id FROM tournaments
        WHERE end_date < CURRENT_DATE
-       AND is_completed = false`
+       AND winner IS NULL`
     );
 
     if (staleTournaments.length === 0) {
-      return NextResponse.json({ success: true, message: 'All past tournaments already marked complete', updated: [] });
+      return NextResponse.json({ success: true, message: 'All past tournaments already have winners recorded', updated: [] });
     }
 
-    const updates: { tournament: string; winner: string | null }[] = [];
+    // Fetch the full 2026 schedule once — it includes winner fields for completed events
+    let scheduleByEventId: Map<string, string | null> = new Map();
+    try {
+      const schedRes = await fetch(
+        `https://feeds.datagolf.com/get-schedule?tour=pga&season=2026&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
+      );
+      if (schedRes.ok) {
+        const schedData = await schedRes.json();
+        for (const event of schedData.schedule || []) {
+          if (event.event_id && event.winner) {
+            scheduleByEventId.set(String(event.event_id), event.winner);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch schedule for winner lookup:', err);
+    }
+
+    function parseWinnerName(raw: string | null): string | null {
+      if (!raw) return null;
+      // DataGolf sometimes returns "Last, First" — convert to "First Last"
+      if (raw.includes(',')) {
+        const parts = raw.split(',').map((s: string) => s.trim());
+        return parts.length === 2 ? `${parts[1]} ${parts[0]}` : raw;
+      }
+      return raw;
+    }
+
+    const updates: { tournament: string; winner: string | null; source: string }[] = [];
 
     for (const tournament of staleTournaments) {
       let winner: string | null = null;
+      let source = 'none';
 
-      // Try fetching winner from DataGolf historical event-level data
-      try {
-        const histResponse = await fetch(
-          `https://feeds.datagolf.com/historical-raw-data/event-level?tour=pga&event_id=${tournament.id}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
-        );
-
-        if (histResponse.ok) {
-          const histData = await histResponse.json();
-          const results: any[] = histData.results || histData.leaderboard || [];
-
-          if (results.length > 0) {
-            // Winner = position 1, or lowest finish position value
-            const sorted = results
-              .filter((r: any) => r.fin_text === '1' || r.position === 1 || r.position === '1')
-              .slice(0, 1);
-
-            if (sorted.length > 0) {
-              const raw = sorted[0].player_name || sorted[0].name || null;
-              // DataGolf returns "Last, First" — convert to "First Last"
-              if (raw && raw.includes(',')) {
-                const parts = raw.split(',').map((s: string) => s.trim());
-                winner = parts.length === 2 ? `${parts[1]} ${parts[0]}` : raw;
-              } else {
-                winner = raw;
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.warn(`Could not fetch historical data for ${tournament.event_name}:`, err);
+      // Source 1: DataGolf schedule API (updated in real-time after each event)
+      const schedWinner = scheduleByEventId.get(String(tournament.id));
+      if (schedWinner) {
+        winner = parseWinnerName(schedWinner);
+        source = 'schedule';
       }
 
-      // If historical data had no results, try the live field-updates endpoint
-      // (works for the most recently completed tournament before DataGolf rolls over)
+      // Source 2: DataGolf historical event-level (may lag by a few days)
       if (!winner) {
         try {
-          const fieldResponse = await fetch(
-            `https://feeds.datagolf.com/field-updates?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
+          const histResponse = await fetch(
+            `https://feeds.datagolf.com/historical-raw-data/event-level?tour=pga&season=2026&event_id=${tournament.id}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
           );
-          if (fieldResponse.ok) {
-            const fieldData = await fieldResponse.json();
-            // Match by event name (fuzzy: check if one contains the other)
-            const nameMatch =
-              fieldData.event_name &&
-              (fieldData.event_name.toLowerCase().includes(tournament.event_name.toLowerCase().split(' ')[0]) ||
-                tournament.event_name.toLowerCase().includes(fieldData.event_name.toLowerCase().split(' ')[0]));
-
-            if (nameMatch && Array.isArray(fieldData.field)) {
-              const sorted = [...fieldData.field].sort(
-                (a: any, b: any) => (a.total_strokes || 999) - (b.total_strokes || 999)
-              );
-              if (sorted[0]?.player_name) {
-                const raw = sorted[0].player_name;
-                if (raw.includes(',')) {
-                  const parts = raw.split(',').map((s: string) => s.trim());
-                  winner = parts.length === 2 ? `${parts[1]} ${parts[0]}` : raw;
-                } else {
-                  winner = raw;
-                }
-              }
+          if (histResponse.ok) {
+            const histData = await histResponse.json();
+            const results: any[] = histData.results || histData.leaderboard || [];
+            const top = results.find(
+              (r: any) => r.fin_text === '1' || r.position === 1 || r.position === '1'
+            );
+            if (top) {
+              winner = parseWinnerName(top.player_name || top.name || null);
+              if (winner) source = 'historical';
             }
           }
         } catch (err) {
-          console.warn(`Could not fetch field data for ${tournament.event_name}:`, err);
+          console.warn(`Could not fetch historical data for ${tournament.event_name}:`, err);
         }
       }
 
@@ -98,7 +92,7 @@ export async function POST() {
         [winner, tournament.id]
       );
 
-      updates.push({ tournament: tournament.event_name, winner });
+      updates.push({ tournament: tournament.event_name, winner, source });
     }
 
     return NextResponse.json({

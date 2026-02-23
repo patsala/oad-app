@@ -39,48 +39,8 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Pick not found' }, { status: 404 });
     }
 
-    // Get tournament info for segment standings update
-    const tournament = await query(
-      'SELECT * FROM tournaments WHERE id = $1',
-      [updated[0].tournament_id]
-    );
-
-    if (tournament && tournament.length > 0) {
-      const { segment } = tournament[0];
-
-      // Recalculate segment standings from all picks in this segment
-      const segmentPicks = await query(
-        `SELECT COALESCE(SUM(p.earnings), 0) as total_earnings,
-                COUNT(CASE WHEN p.finish_position IS NOT NULL THEN 1 END) as events_completed,
-                MIN(CASE WHEN p.finish_position IS NOT NULL THEN p.finish_position END) as best_finish
-         FROM picks p
-         JOIN tournaments t ON p.tournament_id = t.id
-         WHERE t.segment = $1`,
-        [segment]
-      );
-
-      const stats = segmentPicks[0];
-      await query(
-        `UPDATE segment_standings
-         SET total_earnings = $1,
-             events_completed = $2,
-             best_finish = $3,
-             updated_at = NOW()
-         WHERE segment = $4`,
-        [stats.total_earnings, stats.events_completed, stats.best_finish, segment]
-      );
-
-      // Recalculate season total across all segments
-      const seasonTotal = await query(
-        `SELECT COALESCE(SUM(p.earnings), 0) as season_total
-         FROM picks p`
-      );
-
-      await query(
-        `UPDATE segment_standings SET season_total_earnings = $1`,
-        [seasonTotal[0].season_total]
-      );
-    }
+    // segment_standings is now computed live in GET /api/segment-standings
+    // No manual sync needed here.
 
     return NextResponse.json({
       success: true,
