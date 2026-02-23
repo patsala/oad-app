@@ -770,9 +770,9 @@ const GolfPoolTool = () => {
           </div>
 
           {/* Segment Breakdown */}
-          <div className="glass rounded-xl p-4 flex gap-4">
+          <div className="flex gap-4">
             {segmentStandings.map((standing) => (
-              <div key={standing.segment} className="flex-1 text-center">
+              <div key={standing.segment} className="glass rounded-xl p-4 flex-1 text-center">
                 <div className="text-xs text-green-200/60">{standing.segment}</div>
                 <div className="text-2xl font-bold text-masters-yellow">
                   {formatDollar(standing.total_earnings || 0)}
