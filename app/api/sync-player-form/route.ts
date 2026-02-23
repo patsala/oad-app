@@ -5,44 +5,56 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-// Debug: probe the historical API against the most recent 2025 event to verify it works
+// Words in event names that indicate non-scoring/non-regular tour events
+const NON_REGULAR_KEYWORDS = ['q-school', 'qualifying', 'korn ferry', 'champions', 'dp world'];
+
+function isRegularPgaEvent(eventName: string): boolean {
+  const lower = eventName.toLowerCase();
+  return !NON_REGULAR_KEYWORDS.some(kw => lower.includes(kw));
+}
+
+// Debug: probe the historical API across multiple seasons to find working data
 export async function GET() {
   try {
-    const schedRes = await fetch(
-      `https://feeds.datagolf.com/get-schedule?tour=pga&season=2025&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
-    );
-    if (!schedRes.ok) return NextResponse.json({ error: `Schedule fetch failed: ${schedRes.status}` });
-    const schedData = await schedRes.json();
-
     const today = new Date().toISOString().split('T')[0];
-    const completed2025 = (schedData.schedule || [])
-      .filter((e: any) => e.start_date && e.start_date < today)
-      .sort((a: any, b: any) => b.start_date.localeCompare(a.start_date));
+    const results: any[] = [];
 
-    if (completed2025.length === 0) {
-      return NextResponse.json({ message: 'No completed 2025 events found' });
+    for (const season of [2025, 2024]) {
+      const schedRes = await fetch(
+        `https://feeds.datagolf.com/get-schedule?tour=pga&season=${season}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
+      );
+      if (!schedRes.ok) { results.push({ season, error: `Schedule ${schedRes.status}` }); continue; }
+      const schedData = await schedRes.json();
+
+      const regularCompleted = (schedData.schedule || [])
+        .filter((e: any) => e.start_date && e.start_date < today && e.event_id && isRegularPgaEvent(e.event_name || ''))
+        .sort((a: any, b: any) => b.start_date.localeCompare(a.start_date));
+
+      if (regularCompleted.length === 0) { results.push({ season, error: 'No regular completed events' }); continue; }
+
+      // Try the 3 most recent regular events (some may not be indexed yet)
+      for (const evt of regularCompleted.slice(0, 3)) {
+        const url = `https://feeds.datagolf.com/historical-raw-data/event-level?tour=pga&season=${season}&event_id=${evt.event_id}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`;
+        const res = await fetch(url);
+        const rawText = await res.text();
+        let parsed: any = null;
+        try { parsed = JSON.parse(rawText); } catch { /* HTML error page */ }
+        const players = parsed ? (parsed.results || parsed.scores || parsed.leaderboard || parsed.players || []) : [];
+        results.push({
+          season,
+          event: evt.event_name,
+          event_id: evt.event_id,
+          http_status: res.status,
+          players_found: players.length,
+          top_level_keys: parsed ? Object.keys(parsed) : null,
+          sample_player: players[0] ?? null,
+          raw_preview: parsed ? null : rawText.slice(0, 200),
+        });
+        if (players.length > 0) break; // Found working data — stop probing
+      }
     }
 
-    const sample2025 = completed2025[0];
-    const url = `https://feeds.datagolf.com/historical-raw-data/event-level?tour=pga&season=2025&event_id=${sample2025.event_id}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`;
-    const res = await fetch(url);
-    const rawText = await res.text();
-
-    let parsed: any = null;
-    let parseError: string | null = null;
-    try { parsed = JSON.parse(rawText); } catch (e) { parseError = String(e); }
-
-    return NextResponse.json({
-      probing_event: sample2025.event_name,
-      event_id: sample2025.event_id,
-      http_status: res.status,
-      content_type: res.headers.get('content-type'),
-      parse_error: parseError,
-      top_level_keys: parsed ? Object.keys(parsed) : null,
-      sample_player: parsed ? (parsed.results || parsed.scores || parsed.leaderboard || parsed.players || [])[0] ?? null : null,
-      raw_preview: parsed ? null : rawText.slice(0, 500),
-      total_2025_completed: completed2025.length,
-    });
+    return NextResponse.json({ probe_results: results });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
@@ -129,7 +141,7 @@ export async function POST() {
         const schedData = await schedRes.json();
         // Filter to completed PGA Tour events, sort most recent first
         events2025 = (schedData.schedule || [])
-          .filter((e: any) => e.start_date && e.start_date < today && e.event_id)
+          .filter((e: any) => e.start_date && e.start_date < today && e.event_id && isRegularPgaEvent(e.event_name || ''))
           .sort((a: any, b: any) => b.start_date.localeCompare(a.start_date))
           .slice(0, 10)
           .map((e: any) => ({
