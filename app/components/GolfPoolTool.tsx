@@ -736,10 +736,23 @@ const GolfPoolTool = () => {
 
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8 animate-slide-in">
-        <h1 className="text-7xl mb-2 bg-gradient-to-r from-masters-yellow to-masters-gold bg-clip-text text-transparent" style={{ fontFamily: "'Pinyon Script', cursive" }}>
-          Pimento Command Center
-        </h1>
-        <p className="text-green-200/60 text-lg">One & Done Earnings Pool • 171 Entries • $25,650 Pot</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-7xl mb-2 bg-gradient-to-r from-masters-yellow to-masters-gold bg-clip-text text-transparent" style={{ fontFamily: "'Pinyon Script', cursive" }}>
+              Pimento Command Center
+            </h1>
+            <p className="text-green-200/60 text-lg">One & Done Earnings Pool • 171 Entries • $25,650 Pot</p>
+          </div>
+          <button
+            onClick={async () => {
+              await fetch('/api/auth/logout', { method: 'POST' });
+              window.location.href = '/login';
+            }}
+            className="mt-3 px-4 py-2 bg-green-900/40 hover:bg-green-900/70 border border-green-800/30 text-green-300/60 hover:text-green-200 rounded-lg text-sm transition-all"
+          >
+            Sign Out
+          </button>
+        </div>
       </div>
 
       {/* Segment Standings Bar */}
