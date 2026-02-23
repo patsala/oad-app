@@ -83,28 +83,25 @@ export async function POST() {
     
     const data = await response.json();
     
-    // Clear existing tournaments completely
-    await query('TRUNCATE TABLE tournaments CASCADE');
-    
     let count = 0;
     let notFound: string[] = [];
     const processedIds = new Set<string>();
-    
+
     for (const scheduleEvent of SEASON_SCHEDULE) {
       // Find matching tournament in DataGolf feed using fuzzy matching
       const dgEvent = data.schedule.find((e: any) => {
         const eventId = e.event_id;
         return !processedIds.has(eventId) && fuzzyMatch(e.event_name || '', scheduleEvent.key);
       });
-      
+
       if (!dgEvent) {
         notFound.push(scheduleEvent.key);
         continue;
       }
-      
+
       const eventId = dgEvent.event_id;
       processedIds.add(eventId);
-      
+
       const multiplier = scheduleEvent.multiplier || 1.0;
       const purse = scheduleEvent.purse;
       const eventType = scheduleEvent.type;
@@ -112,14 +109,30 @@ export async function POST() {
       const endDate = calculateEndDate(dgEvent.start_date);
       const today = new Date().toISOString().split('T')[0];
       const isCompleted = dgEvent.status === 'completed' || endDate < today;
-      
+
+      // Use upsert to preserve picks/FK relationships — never TRUNCATE CASCADE
       await query(
         `INSERT INTO tournaments (
-          id, event_id, event_name, course_name, course_id, 
-          city, country, latitude, longitude, 
-          start_date, end_date, season, purse, multiplier, 
+          id, event_id, event_name, course_name, course_id,
+          city, country, latitude, longitude,
+          start_date, end_date, season, purse, multiplier,
           segment, event_type, tour, winner, is_completed, week_number
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        ON CONFLICT (id) DO UPDATE SET
+          event_name = EXCLUDED.event_name,
+          course_name = EXCLUDED.course_name,
+          course_id = EXCLUDED.course_id,
+          city = EXCLUDED.city,
+          country = EXCLUDED.country,
+          start_date = EXCLUDED.start_date,
+          end_date = EXCLUDED.end_date,
+          purse = EXCLUDED.purse,
+          multiplier = EXCLUDED.multiplier,
+          segment = EXCLUDED.segment,
+          event_type = EXCLUDED.event_type,
+          is_completed = EXCLUDED.is_completed,
+          week_number = EXCLUDED.week_number,
+          winner = COALESCE(EXCLUDED.winner, tournaments.winner)`,
         [
           eventId,
           dgEvent.event_id,

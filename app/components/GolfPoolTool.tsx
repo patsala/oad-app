@@ -434,7 +434,7 @@ const GolfPoolTool = () => {
         
         const picksResponse = await fetch('/api/picks');
         const picksData = await picksResponse.json();
-        const tournamentPick = picksData.picks.find((p: Pick) => p.tournament_id === data.tournament.id);
+        const tournamentPick = (picksData.picks || []).find((p: Pick) => p.tournament_id === data.tournament.id);
         
         if (tournamentPick) {
           setCurrentPick(tournamentPick);
@@ -464,7 +464,7 @@ const GolfPoolTool = () => {
     try {
       const response = await fetch('/api/picks');
       const data = await response.json();
-      setAllPicks(data.picks);
+      setAllPicks(data.picks || []);
     } catch (error) {
       console.error('Failed to load picks:', error);
     }
