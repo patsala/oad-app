@@ -1,48 +1,48 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/app/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const today = new Date().toISOString().split('T')[0];
-    
-    // Find active tournament (today is between start and end date)
+
+    // Auto-complete any tournaments whose end_date has passed but aren't marked done.
+    // This keeps state correct without requiring a manual DB update after every tournament.
+    await query(
+      `UPDATE tournaments
+       SET is_completed = true
+       WHERE end_date < $1
+         AND is_completed = false`,
+      [today]
+    );
+
+    // 1. Active: tournament in progress right now (today within date range)
     const active = await query(
-      `SELECT * FROM tournaments 
+      `SELECT * FROM tournaments
        WHERE start_date <= $1 AND end_date >= $1 AND is_completed = false
        ORDER BY start_date ASC
        LIMIT 1`,
       [today]
     );
-    
+
     if (active && active.length > 0) {
       return NextResponse.json({ tournament: active[0], status: 'active' });
     }
-    
-    // No active tournament, get next upcoming (not completed)
+
+    // 2. Upcoming: next tournament that hasn't started yet
     const upcoming = await query(
-      `SELECT * FROM tournaments 
+      `SELECT * FROM tournaments
        WHERE start_date > $1 AND is_completed = false
        ORDER BY start_date ASC
        LIMIT 1`,
       [today]
     );
-    
+
     if (upcoming && upcoming.length > 0) {
       return NextResponse.json({ tournament: upcoming[0], status: 'upcoming' });
     }
-    
-    // Fallback: get last incomplete tournament (for retroactive picks)
-    const lastIncomplete = await query(
-      `SELECT * FROM tournaments 
-       WHERE is_completed = false
-       ORDER BY start_date ASC
-       LIMIT 1`
-    );
-    
-    if (lastIncomplete && lastIncomplete.length > 0) {
-      return NextResponse.json({ tournament: lastIncomplete[0], status: 'incomplete' });
-    }
-    
+
     return NextResponse.json({ error: 'No available tournaments' }, { status: 404 });
   } catch (error) {
     console.error('Database error:', error);

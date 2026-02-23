@@ -11,7 +11,17 @@ export async function GET() {
     );
     
     const fieldData = await fieldResponse.json();
-    
+
+    // Field not yet posted for upcoming tournament
+    if (!fieldData.field || fieldData.field.length === 0) {
+      return NextResponse.json({
+        event_name: fieldData.event_name || 'Upcoming Tournament',
+        course: fieldData.course_name || null,
+        field: [],
+        note: 'Field not yet announced — check back closer to tournament start'
+      });
+    }
+
     // Get odds, probabilities, and DFS data for the field
     const [oddsResponse, probabilitiesResponse, dfsResponse] = await Promise.all([
       fetch(`https://feeds.datagolf.com/betting-tools/outrights?tour=pga&market=win&odds_format=american&file_format=json&key=${process.env.DATAGOLF_API_KEY}`),
@@ -19,12 +29,14 @@ export async function GET() {
       fetch(`https://feeds.datagolf.com/preds/fantasy-projection-defaults?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`)
     ]);
 
-    const oddsData = await oddsResponse.json();
-    const probabilitiesData = await probabilitiesResponse.json();
-    const dfsData = await dfsResponse.json();
+    const [oddsData, probabilitiesData, dfsData] = await Promise.all([
+      oddsResponse.ok ? oddsResponse.json() : { odds: [] },
+      probabilitiesResponse.ok ? probabilitiesResponse.json() : { baseline: [] },
+      dfsResponse.ok ? dfsResponse.json() : { projections: [] }
+    ]);
 
-    const probabilities = probabilitiesData.baseline || [];
-    const dfsProjections = dfsData.projections || [];
+    const probabilities: any[] = probabilitiesData.baseline || [];
+    const dfsProjections: any[] = dfsData.projections || [];
 
     // Combine field with odds, probabilities, and DFS
     const field = (fieldData.field || []).map((player: any) => {
@@ -32,23 +44,26 @@ export async function GET() {
       const playerProb = probabilities.find((p: any) => p.dg_id === player.dg_id);
       const playerDfs = dfsProjections.find((d: any) => d.dg_id === player.dg_id);
 
+      // Prefer DraftKings odds, fall back to DataGolf model odds, null if neither available
+      let win_odds: number | null = null;
+      if (playerOdds?.draftkings) {
+        win_odds = parseInt(String(playerOdds.draftkings).replace('+', ''));
+      } else if (playerOdds?.datagolf?.baseline) {
+        win_odds = parseInt(String(playerOdds.datagolf.baseline).replace('+', ''));
+      }
+
       return {
         name: player.player_name,
         dg_id: player.dg_id,
         owgr: player.owgr_rank,
         country: player.country,
-        // Prefer DraftKings odds, fall back to DataGolf model odds
-        win_odds: playerOdds?.draftkings
-          ? parseInt(String(playerOdds.draftkings).replace('+', ''))
-          : playerOdds?.datagolf?.baseline
-            ? parseInt(playerOdds.datagolf.baseline.replace('+', ''))
-            : null,
-        win_probability: playerProb?.win || null,
-        make_cut_probability: playerProb?.make_cut || null,
-        dk_salary: playerDfs?.salary || null
+        win_odds,
+        win_probability: playerProb?.win ?? null,
+        make_cut_probability: playerProb?.make_cut ?? null,
+        dk_salary: playerDfs?.salary ?? null
       };
     }).sort((a: any, b: any) => (a.owgr || 999) - (b.owgr || 999));
-    
+
     return NextResponse.json({
       event_name: fieldData.event_name,
       course: fieldData.course_name,
