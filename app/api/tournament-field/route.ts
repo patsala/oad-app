@@ -5,9 +5,11 @@ export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    // Get current tournament field from DataGolf
+    // Get current tournament field from DataGolf — no-store ensures fresh data every request
+    const noStore = { cache: 'no-store' } as const;
     const fieldResponse = await fetch(
-      `https://feeds.datagolf.com/field-updates?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
+      `https://feeds.datagolf.com/field-updates?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`,
+      noStore
     );
     
     const fieldData = await fieldResponse.json();
@@ -24,9 +26,9 @@ export async function GET() {
 
     // Get odds, probabilities, and DFS data for the field
     const [oddsResponse, probabilitiesResponse, dfsResponse] = await Promise.all([
-      fetch(`https://feeds.datagolf.com/betting-tools/outrights?tour=pga&market=win&odds_format=american&file_format=json&key=${process.env.DATAGOLF_API_KEY}`),
-      fetch(`https://feeds.datagolf.com/preds/pre-tournament?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`),
-      fetch(`https://feeds.datagolf.com/preds/fantasy-projection-defaults?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`)
+      fetch(`https://feeds.datagolf.com/betting-tools/outrights?tour=pga&market=win&odds_format=american&file_format=json&key=${process.env.DATAGOLF_API_KEY}`, noStore),
+      fetch(`https://feeds.datagolf.com/preds/pre-tournament?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`, noStore),
+      fetch(`https://feeds.datagolf.com/preds/fantasy-projection-defaults?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`, noStore)
     ]);
 
     const [oddsData, probabilitiesData, dfsData] = await Promise.all([
