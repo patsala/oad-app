@@ -19,7 +19,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/cron') ||
     pathname.startsWith('/api/sync-') ||
     pathname.startsWith('/api/update-completed-tournaments') ||
-    pathname.startsWith('/api/migrate-')
+    pathname.startsWith('/api/migrate-') ||
+    pathname.startsWith('/api/debug-apis')
   ) {
     return NextResponse.next();
   }
