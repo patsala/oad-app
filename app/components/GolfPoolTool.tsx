@@ -1254,48 +1254,103 @@ const GolfPoolTool = () => {
             </div>
           )}
 
-          {/* Course Specialists */}
-          {courseSpecialists.length > 0 && (
-            <div className="max-w-7xl mx-auto mb-4">
-              <div className="glass rounded-xl overflow-hidden">
-                <button
-                  onClick={() => setShowSpecialists(s => !s)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-masters-dark/30 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <Map className="w-4 h-4 text-masters-yellow" />
-                    <span className="font-semibold text-sm text-masters-yellow">COURSE HISTORY</span>
-                    <span className="text-xs text-green-300/40">
-                      Best performers at {currentTournament?.course_name}
-                    </span>
+          {/* Course History + Weather Suitability — side by side when both available */}
+          {(courseSpecialists.length > 0 || weatherData?.impact) && (() => {
+            // Compute weather-suited players from current recommendations
+            const metric = weatherData?.impact?.favors?.toLowerCase().includes('distance') ? 'sg_ott' : 'sg_app';
+            const metricLabel = metric === 'sg_ott' ? 'SG:OTT' : 'SG:APP';
+            const suitedPlayers = weatherData?.impact
+              ? [...recommendations]
+                  .filter(r => r.enrichment?.[metric] != null)
+                  .sort((a, b) => Number(b.enrichment?.[metric] ?? 0) - Number(a.enrichment?.[metric] ?? 0))
+                  .slice(0, 8)
+              : [];
+            const hasCourse = courseSpecialists.length > 0;
+            const hasWeather = suitedPlayers.length > 0;
+
+            return (
+              <div className={`max-w-7xl mx-auto mb-4 ${hasCourse && hasWeather ? 'grid grid-cols-2 gap-4 items-start' : ''}`}>
+
+                {/* Course History */}
+                {hasCourse && (
+                  <div className="glass rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => setShowSpecialists(s => !s)}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-masters-dark/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Map className="w-4 h-4 text-masters-yellow" />
+                        <span className="font-semibold text-sm text-masters-yellow">COURSE HISTORY</span>
+                        <span className="text-xs text-green-300/40">
+                          Best at {currentTournament?.course_name}
+                        </span>
+                      </div>
+                      <span className="text-green-300/40 text-sm">{showSpecialists ? '▲' : '▼'}</span>
+                    </button>
+                    {showSpecialists && (
+                      <div className="border-t border-green-800/30 px-4 pb-3">
+                        <div className="space-y-1.5 pt-2">
+                          {courseSpecialists.map((s, i) => (
+                            <div key={s.dg_id} className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-2">
+                                <span className="text-green-300/40 w-5 text-right font-mono text-xs">{i + 1}.</span>
+                                <span className="font-semibold">{s.player_name}</span>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-green-200/60">
+                                <span>{s.times_played}x</span>
+                                {s.average_finish != null && <span>Avg {Number(s.average_finish).toFixed(1)}</span>}
+                                {s.best_finish != null && (
+                                  <span>Best {s.best_finish === 1 ? 'Win' : `T${s.best_finish}`}</span>
+                                )}
+                                <span>{Math.round(Number(s.cut_percentage))}% cuts</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <span className="text-green-300/40 text-sm">{showSpecialists ? '▲' : '▼'}</span>
-                </button>
-                {showSpecialists && (
-                  <div className="border-t border-green-800/30 px-4 pb-3">
-                    <div className="space-y-1.5 pt-2">
-                      {courseSpecialists.map((s, i) => (
-                        <div key={s.dg_id} className="flex items-center justify-between text-sm">
+                )}
+
+                {/* Weather Suitability */}
+                {hasWeather && (
+                  <div className="glass rounded-xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-green-800/30">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">
+                          {metric === 'sg_ott' ? '💪' : '🎯'}
+                        </span>
+                        <span className="font-semibold text-sm text-masters-yellow">
+                          {metric === 'sg_ott' ? 'DISTANCE ADVANTAGE' : 'ACCURACY ADVANTAGE'}
+                        </span>
+                        <span className="text-xs text-green-300/40">
+                          {metric === 'sg_ott' ? 'Ranked by SG:OTT' : 'Ranked by SG:APP'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-green-300/40 mt-0.5 pl-6">
+                        {weatherData?.impact?.message}
+                      </div>
+                    </div>
+                    <div className="px-4 py-3 space-y-2">
+                      {suitedPlayers.map((rec, i) => (
+                        <div key={rec.dg_id} className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-2">
                             <span className="text-green-300/40 w-5 text-right font-mono text-xs">{i + 1}.</span>
-                            <span className="font-semibold">{s.player_name}</span>
+                            <span className="font-semibold">{rec.name}</span>
+                            <span className="text-xs text-green-300/40 font-mono">{rec.tier}</span>
                           </div>
-                          <div className="flex items-center gap-3 text-xs text-green-200/60">
-                            <span>{s.times_played} starts</span>
-                            {s.average_finish != null && <span>Avg {Number(s.average_finish).toFixed(1)}</span>}
-                            {s.best_finish != null && (
-                              <span>Best {s.best_finish === 1 ? 'Win' : `T${s.best_finish}`}</span>
-                            )}
-                            <span>{Math.round(Number(s.cut_percentage))}% cuts</span>
-                          </div>
+                          <span className={`text-xs font-mono font-semibold ${Number(rec.enrichment?.[metric] ?? 0) > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {Number(rec.enrichment?.[metric] ?? 0) > 0 ? '+' : ''}
+                            {Number(rec.enrichment?.[metric] ?? 0).toFixed(2)} {metricLabel}
+                          </span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {loadingRecommendations ? (
             <div className="max-w-7xl mx-auto glass rounded-2xl p-12 text-center">
