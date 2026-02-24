@@ -56,10 +56,36 @@ export async function POST() {
     const eventListData = await eventListRes.json();
     const allEvents: any[] = eventListData.events || eventListData || [];
 
-    // 3. Find all past years where this event_id appears (last 7 years)
+    // Known name aliases for renamed tournaments (substring match on current event name)
+    const TOURNAMENT_ALIASES: Record<string, string[]> = {
+      'Cognizant Classic': ['Honda Classic'],
+      'RBC Heritage': ['Heritage Classic', 'MCI Heritage'],
+      'Travelers Championship': ['Buick Championship', 'Greater Hartford Open'],
+      // Add more as needed
+    };
+
+    const aliasNames: string[] = Object.entries(TOURNAMENT_ALIASES)
+      .filter(([key]) => tournament.event_name.includes(key))
+      .flatMap(([, aliases]) => aliases);
+
+    // 3. Find all past years where this event ran — by event_id OR by alias name
+    const seenYears = new Set<number>();
     const matchingYears = allEvents
-      .filter((e: any) => Number(e.event_id) === eventId && e.calendar_year < currentYear)
+      .filter((e: any) => {
+        const pastYear = e.calendar_year < currentYear;
+        const matchById = Number(e.event_id) === eventId;
+        const matchByAlias = aliasNames.some((alias: string) =>
+          (e.event_name || '').toLowerCase().includes(alias.toLowerCase())
+        );
+        return pastYear && (matchById || matchByAlias);
+      })
       .sort((a: any, b: any) => b.calendar_year - a.calendar_year)
+      // Deduplicate by year (in case both event_id match AND alias match for same year)
+      .filter((e: any) => {
+        if (seenYears.has(e.calendar_year)) return false;
+        seenYears.add(e.calendar_year);
+        return true;
+      })
       .slice(0, 7);
 
     if (matchingYears.length === 0) {
@@ -71,14 +97,16 @@ export async function POST() {
       });
     }
 
-    // 4. Fetch results for all matching years in parallel
+    // 4. Fetch results using each year's actual event_id from the event list
+    // (alias years may have a different event_id than the current tournament)
     const yearResults = await Promise.all(
       matchingYears.map(async (evt: any) => {
         const year = evt.calendar_year;
+        const fetchEventId = evt.event_id; // may differ for alias/renamed events
         const eventName = evt.event_name;
         try {
           const res = await fetch(
-            `https://feeds.datagolf.com/historical-event-data/events?tour=pga&event_id=${eventId}&year=${year}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
+            `https://feeds.datagolf.com/historical-event-data/events?tour=pga&event_id=${fetchEventId}&year=${year}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
           );
           if (!res.ok) return { year, event_name: eventName, players: [] };
           const data = await res.json();

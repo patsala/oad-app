@@ -1381,7 +1381,15 @@ const GolfPoolTool = () => {
                                       {h.finish_label}
                                     </span>
                                     {h.earnings && (
-                                      <span className="text-green-300/40">{h.earnings}</span>
+                                      <span className="text-green-300/40">
+                                        {(() => {
+                                          const num = Number(String(h.earnings).replace(/[$,]/g, ''));
+                                          if (isNaN(num)) return h.earnings;
+                                          if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+                                          if (num >= 1000) return `$${(num / 1000).toFixed(0)}K`;
+                                          return `$${num}`;
+                                        })()}
+                                      </span>
                                     )}
                                   </div>
                                 ))}
