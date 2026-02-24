@@ -131,7 +131,7 @@ export async function POST() {
           if (!res.ok) return { event_name: eventName, end_date: endDate, results: [] };
           const data = await res.json();
           // The endpoint returns event-level finishes — figure out the array field
-          const players = data.results || data.scores || data.leaderboard || data.players || data.event_results || [];
+          const players = data.event_stats || data.results || data.scores || data.leaderboard || [];
           return { event_name: eventName, end_date: endDate, results: players };
         } catch {
           return { event_name: eventName, end_date: endDate, results: [] };
