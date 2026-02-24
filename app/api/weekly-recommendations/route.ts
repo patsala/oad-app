@@ -34,6 +34,14 @@ function parseOdds(oddsString: string | undefined): number | undefined {
   return parseInt(oddsString.replace('+', ''));
 }
 
+function calculateTier(owgrRank: number | null): string {
+  if (!owgrRank) return 'Tier 3';
+  if (owgrRank <= 10) return 'Elite';
+  if (owgrRank <= 30) return 'Tier 1';
+  if (owgrRank <= 75) return 'Tier 2';
+  return 'Tier 3';
+}
+
 function calculateEnhancedEV(
   winProb: number, 
   top5Prob: number, 
@@ -194,8 +202,14 @@ export async function GET() {
     // Build preliminary recommendations with EV and enrichment
     for (const fieldPlayer of currentField) {
       const dbPlayer = dbPlayers.find((p: any) => p.dg_id === fieldPlayer.dg_id);
-      if (!dbPlayer) continue;
-      
+      // Fall back to field player data for non-DB players (amateurs, LIV, etc.)
+      const playerName = dbPlayer?.name || fieldPlayer.player_name;
+      const playerOwgr = dbPlayer?.owgr_rank || fieldPlayer.owgr_rank;
+      const playerDgRank = dbPlayer?.datagolf_rank || 999;
+      const playerTier = dbPlayer?.tier || calculateTier(playerOwgr);
+      const isUsed = dbPlayer?.used_in_tournament_id != null;
+      const usedWeek = dbPlayer?.used_in_week;
+
       const playerOdds = currentOdds.find((o: any) => o.dg_id === fieldPlayer.dg_id);
 
       const playerProb = probabilities.find((p: any) => p.dg_id === fieldPlayer.dg_id);
@@ -204,10 +218,13 @@ export async function GET() {
 
       if (!playerProb) continue;
 
-      const isUsed = dbPlayer.used_in_tournament_id !== null;
-
-      // Prefer DraftKings → DG baseline → DG baseline_history_fit
-      const winOdds = parseOdds(playerOdds?.draftkings)
+      // Prefer bet365 → FanDuel → William Hill → DraftKings → BetMGM → Pinnacle → DG baseline → DG baseline_history_fit
+      const winOdds = parseOdds(playerOdds?.bet365)
+        || parseOdds(playerOdds?.fanduel)
+        || parseOdds(playerOdds?.williamhill)
+        || parseOdds(playerOdds?.draftkings)
+        || parseOdds(playerOdds?.betmgm)
+        || parseOdds(playerOdds?.pinnacle)
         || parseOdds(playerOdds?.datagolf?.baseline)
         || parseOdds(playerOdds?.datagolf?.baseline_history_fit)
         || null;
@@ -246,11 +263,11 @@ export async function GET() {
       const rankingScore = ev; // Pure EV ranking - skill match is informational only
       
       preliminaryRecs.push({
-        name: dbPlayer.name,
-        dg_id: dbPlayer.dg_id,
-        tier: dbPlayer.tier,
-        owgr_rank: dbPlayer.owgr_rank || 999,
-        datagolf_rank: dbPlayer.datagolf_rank || 999,
+        name: playerName,
+        dg_id: fieldPlayer.dg_id,
+        tier: playerTier,
+        owgr_rank: playerOwgr || 999,
+        datagolf_rank: playerDgRank,
         win_odds: winOdds,
         win_probability: winProb,
         top_5_probability: top5Prob,
@@ -260,7 +277,7 @@ export async function GET() {
         dk_salary: playerDfs?.salary,
         course_fit: courseFitWinProb,
         is_used: isUsed,
-        used_week: dbPlayer.used_in_week,
+        used_week: usedWeek,
         ev: ev,
         ranking_score: rankingScore,
         skill_match_score: skillMatchScore,
