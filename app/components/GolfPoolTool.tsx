@@ -1255,11 +1255,15 @@ const GolfPoolTool = () => {
           )}
 
           {/* Course History + Weather Suitability — side by side when both available */}
-          {(courseSpecialists.length > 0 || weatherData?.impact) && (() => {
-            // Compute weather-suited players from current recommendations
-            const metric = weatherData?.impact?.favors?.toLowerCase().includes('distance') ? 'sg_ott' : 'sg_app';
-            const metricLabel = metric === 'sg_ott' ? 'SG:OTT' : 'SG:APP';
-            const suitedPlayers = weatherData?.impact
+          {(courseSpecialists.length > 0 || weatherData || recommendations.length > 0) && (() => {
+            // Determine metric based on forecast impact; fall back to sg_total for calm conditions
+            const metric: 'sg_ott' | 'sg_app' | 'sg_total' = weatherData?.impact?.favors?.toLowerCase().includes('distance')
+              ? 'sg_ott'
+              : weatherData?.impact != null
+                ? 'sg_app'
+                : 'sg_total';
+            const metricLabel = metric === 'sg_ott' ? 'SG:OTT' : metric === 'sg_app' ? 'SG:APP' : 'SG:Total';
+            const suitedPlayers = recommendations.length > 0
               ? [...recommendations]
                   .filter(r => r.enrichment?.[metric] != null)
                   .sort((a, b) => Number(b.enrichment?.[metric] ?? 0) - Number(a.enrichment?.[metric] ?? 0))
@@ -1318,17 +1322,17 @@ const GolfPoolTool = () => {
                     <div className="px-4 py-3 border-b border-green-800/30">
                       <div className="flex items-center gap-2">
                         <span className="text-base">
-                          {metric === 'sg_ott' ? '💪' : '🎯'}
+                          {metric === 'sg_ott' ? '💪' : metric === 'sg_app' ? '🎯' : '⛳'}
                         </span>
                         <span className="font-semibold text-sm text-masters-yellow">
-                          {metric === 'sg_ott' ? 'DISTANCE ADVANTAGE' : 'ACCURACY ADVANTAGE'}
+                          {metric === 'sg_ott' ? 'DISTANCE ADVANTAGE' : metric === 'sg_app' ? 'ACCURACY ADVANTAGE' : 'TOP BALL-STRIKERS'}
                         </span>
                         <span className="text-xs text-green-300/40">
-                          {metric === 'sg_ott' ? 'Ranked by SG:OTT' : 'Ranked by SG:APP'}
+                          {metricLabel}
                         </span>
                       </div>
                       <div className="text-xs text-green-300/40 mt-0.5 pl-6">
-                        {weatherData?.impact?.message}
+                        {weatherData?.impact?.message ?? 'Favorable conditions — best overall ball-strikers in the field'}
                       </div>
                     </div>
                     <div className="px-4 py-3 space-y-2">
