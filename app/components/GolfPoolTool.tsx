@@ -561,6 +561,7 @@ const GolfPoolTool = () => {
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(true);
   const [showWeather, setShowWeather] = useState(true);
+  const [showWeatherSuitability, setShowWeatherSuitability] = useState(false);
 
   // Load data on mount
   useEffect(() => {
@@ -1256,12 +1257,14 @@ const GolfPoolTool = () => {
 
           {/* Course History + Weather Suitability — side by side when both available */}
           {(courseSpecialists.length > 0 || weatherData || recommendations.length > 0) && (() => {
-            // Determine metric based on forecast impact; fall back to sg_total for calm conditions
-            const metric: 'sg_ott' | 'sg_app' | 'sg_total' = weatherData?.impact?.favors?.toLowerCase().includes('distance')
-              ? 'sg_ott'
-              : weatherData?.impact != null
-                ? 'sg_app'
-                : 'sg_total';
+            // Read conditions directly from forecast data for more sensitive metric switching
+            const maxPrecip = Math.max(...(weatherData?.forecast ?? []).map(d => d.precipitation), 0);
+            const maxWind   = Math.max(...(weatherData?.forecast ?? []).map(d => d.wind_speed), 0);
+            // >35% rain → soft conditions favour distance; >15 mph wind → accuracy matters; else overall
+            const metric: 'sg_ott' | 'sg_app' | 'sg_total' =
+              maxPrecip > 35 ? 'sg_ott' :
+              maxWind   > 15 ? 'sg_app' :
+              'sg_total';
             const metricLabel = metric === 'sg_ott' ? 'SG:OTT' : metric === 'sg_app' ? 'SG:APP' : 'SG:Total';
             const suitedPlayers = recommendations.length > 0
               ? [...recommendations]
@@ -1319,7 +1322,10 @@ const GolfPoolTool = () => {
                 {/* Weather Suitability */}
                 {hasWeather && (
                   <div className="glass rounded-xl overflow-hidden">
-                    <div className="px-4 py-3 border-b border-green-800/30">
+                    <button
+                      onClick={() => setShowWeatherSuitability(s => !s)}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-masters-dark/30 transition-colors"
+                    >
                       <div className="flex items-center gap-2">
                         <span className="text-base">
                           {metric === 'sg_ott' ? '💪' : metric === 'sg_app' ? '🎯' : '⛳'}
@@ -1327,29 +1333,36 @@ const GolfPoolTool = () => {
                         <span className="font-semibold text-sm text-masters-yellow">
                           {metric === 'sg_ott' ? 'DISTANCE ADVANTAGE' : metric === 'sg_app' ? 'ACCURACY ADVANTAGE' : 'TOP BALL-STRIKERS'}
                         </span>
-                        <span className="text-xs text-green-300/40">
-                          {metricLabel}
-                        </span>
+                        <span className="text-xs text-green-300/40">{metricLabel}</span>
                       </div>
-                      <div className="text-xs text-green-300/40 mt-0.5 pl-6">
-                        {weatherData?.impact?.message ?? 'Favorable conditions — best overall ball-strikers in the field'}
-                      </div>
-                    </div>
-                    <div className="px-4 py-3 space-y-2">
-                      {suitedPlayers.map((rec, i) => (
-                        <div key={rec.dg_id} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="text-green-300/40 w-5 text-right font-mono text-xs">{i + 1}.</span>
-                            <span className="font-semibold">{rec.name}</span>
-                            <span className="text-xs text-green-300/40 font-mono">{rec.tier}</span>
-                          </div>
-                          <span className={`text-xs font-mono font-semibold ${Number(rec.enrichment?.[metric] ?? 0) > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {Number(rec.enrichment?.[metric] ?? 0) > 0 ? '+' : ''}
-                            {Number(rec.enrichment?.[metric] ?? 0).toFixed(2)} {metricLabel}
-                          </span>
+                      <span className="text-green-300/40 text-sm">{showWeatherSuitability ? '▲' : '▼'}</span>
+                    </button>
+                    {showWeatherSuitability && (
+                      <div className="border-t border-green-800/30 px-4 pb-3 pt-1">
+                        <div className="text-xs text-green-300/40 mb-2">
+                          {weatherData?.impact?.message ?? (
+                            metric === 'sg_ott' ? 'Rain likely — soft conditions favour distance players' :
+                            metric === 'sg_app' ? 'Wind expected — accuracy players have the edge' :
+                            'Favorable conditions — best overall ball-strikers in the field'
+                          )}
                         </div>
-                      ))}
-                    </div>
+                        <div className="space-y-1.5">
+                          {suitedPlayers.map((rec, i) => (
+                            <div key={rec.dg_id} className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-2">
+                                <span className="text-green-300/40 w-5 text-right font-mono text-xs">{i + 1}.</span>
+                                <span className="font-semibold">{rec.name}</span>
+                                <span className="text-xs text-green-300/40">{rec.tier}</span>
+                              </div>
+                              <span className={`text-xs font-mono font-semibold ${Number(rec.enrichment?.[metric] ?? 0) > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {Number(rec.enrichment?.[metric] ?? 0) > 0 ? '+' : ''}
+                                {Number(rec.enrichment?.[metric] ?? 0).toFixed(2)} {metricLabel}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
