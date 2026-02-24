@@ -1166,7 +1166,7 @@ const GolfPoolTool = () => {
                           </div>
                           <div className="flex items-center gap-3 text-xs text-green-200/60">
                             <span>{s.times_played} starts</span>
-                            {s.average_finish != null && <span>Avg T{Math.round(s.average_finish)}</span>}
+                            {s.average_finish != null && <span>Avg {Number(s.average_finish).toFixed(1)}</span>}
                             {s.best_finish != null && (
                               <span>Best {s.best_finish === 1 ? 'Win' : `T${s.best_finish}`}</span>
                             )}
@@ -1354,7 +1354,7 @@ const GolfPoolTool = () => {
                             <span className="font-semibold text-green-200/60">Course History</span>
                             <span className="text-green-300/40">
                               {rec.course_history.times_played} starts
-                              {rec.course_history.average_finish != null && ` · Avg T${Math.round(rec.course_history.average_finish)}`}
+                              {rec.course_history.average_finish != null && ` · Avg ${Number(rec.course_history.average_finish).toFixed(1)}`}
                               {rec.course_history.best_finish != null && ` · Best ${rec.course_history.best_finish === 1 ? 'Win' : `T${rec.course_history.best_finish}`}`}
                               {` · ${Math.round(Number(rec.course_history.cut_percentage))}% cuts`}
                             </span>
