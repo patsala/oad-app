@@ -388,6 +388,34 @@ const FormSection = ({ form }: { form: NonNullable<PlayerRecommendation['form']>
     form.category === 'cold' ? { label: '🧊 COLD', cls: 'bg-blue-500/20 border-blue-500/40 text-blue-300' } :
     null;
 
+  // Trend arrow: compare most-recent half vs older half of results
+  // Results are most-recent-first; lower position = better in golf
+  const trend = (() => {
+    const results = form.last_5_results;
+    if (results.length < 3) return null;
+
+    const toNum = (r: { made_cut: boolean; withdrew: boolean; finish: string }) => {
+      if (r.withdrew) return 80;
+      if (!r.made_cut) return 70;
+      const pos = parseInt(r.finish.replace(/^T/, ''), 10);
+      return isNaN(pos) ? 70 : pos;
+    };
+
+    const nums = results.map(toNum);
+    const mid = Math.ceil(nums.length / 2);
+    // recent = indexes 0..mid-1 (most recent), older = indexes mid..end
+    const avgRecent = nums.slice(0, mid).reduce((a, b) => a + b, 0) / mid;
+    const avgOlder  = nums.slice(mid).reduce((a, b) => a + b, 0) / (nums.length - mid);
+
+    // Dynamic threshold: 8 positions or 20% of the average, whichever is larger
+    const threshold = Math.max(8, avgOlder * 0.2);
+    const diff = avgRecent - avgOlder; // negative = improving (lower position = better)
+
+    if (diff < -threshold) return { arrow: '↗', label: 'Improving', cls: 'text-green-400' };
+    if (diff > threshold)  return { arrow: '↘', label: 'Declining',  cls: 'text-red-400' };
+    return { arrow: '→', label: 'Steady', cls: 'text-green-300/40' };
+  })();
+
   const finishIcon = (r: { made_cut: boolean; withdrew: boolean; finish: string }) => {
     if (r.withdrew) return <span className="text-orange-400">✗</span>;
     if (!r.made_cut) return <span className="text-red-400">✗</span>;
@@ -409,6 +437,11 @@ const FormSection = ({ form }: { form: NonNullable<PlayerRecommendation['form']>
           {badge && (
             <span className={`px-1.5 py-0.5 border rounded-full text-[10px] font-bold ${badge.cls}`}>
               {badge.label}
+            </span>
+          )}
+          {trend && (
+            <span className={`text-sm font-bold ${trend.cls}`} title={trend.label}>
+              {trend.arrow}
             </span>
           )}
           <span className="text-green-300/40">
