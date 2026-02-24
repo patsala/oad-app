@@ -84,45 +84,58 @@ export async function POST() {
 
     const yearsWithData = yearResults.filter(r => r.players.length > 0);
 
-    // 5. Upsert individual course_history rows
-    let totalInserted = 0;
+    // 5. Collect all rows then bulk-upsert in a single query via unnest()
+    const dgIds: number[] = [];
+    const playerNames: string[] = [];
+    const eventIds: number[] = [];
+    const eventNames: string[] = [];
+    const years: number[] = [];
+    const positions: (number | null)[] = [];
+    const labels: string[] = [];
+    const madeCuts: boolean[] = [];
+    const withdrews: boolean[] = [];
+    const earnings: (string | null)[] = [];
+
     for (const { year, event_name, players } of yearsWithData) {
       for (const player of players) {
-        const dgId = player.dg_id;
-        if (!dgId) continue;
-
+        if (!player.dg_id) continue;
         const finText = player.fin_text ?? player.finish ?? String(player.position ?? '');
         const parsed = parseFinish(finText);
-        const earnings = player.earnings ?? null;
-
-        await query(
-          `INSERT INTO course_history (
-            dg_id, player_name, event_id, event_name, year,
-            finish_position, finish_label, made_cut, withdrew, earnings
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-          ON CONFLICT (dg_id, event_id, year) DO UPDATE SET
-            player_name = EXCLUDED.player_name,
-            event_name = EXCLUDED.event_name,
-            finish_position = EXCLUDED.finish_position,
-            finish_label = EXCLUDED.finish_label,
-            made_cut = EXCLUDED.made_cut,
-            withdrew = EXCLUDED.withdrew,
-            earnings = EXCLUDED.earnings`,
-          [
-            dgId,
-            player.player_name || '',
-            eventId,
-            event_name,
-            year,
-            parsed.position,
-            parsed.finish_label,
-            parsed.made_cut,
-            parsed.withdrew,
-            earnings,
-          ]
-        );
-        totalInserted++;
+        dgIds.push(player.dg_id);
+        playerNames.push(player.player_name || '');
+        eventIds.push(eventId);
+        eventNames.push(event_name);
+        years.push(year);
+        positions.push(parsed.position);
+        labels.push(parsed.finish_label);
+        madeCuts.push(parsed.made_cut);
+        withdrews.push(parsed.withdrew);
+        earnings.push(player.earnings ?? null);
       }
+    }
+
+    const totalInserted = dgIds.length;
+    if (totalInserted > 0) {
+      await query(
+        `INSERT INTO course_history
+           (dg_id, player_name, event_id, event_name, year,
+            finish_position, finish_label, made_cut, withdrew, earnings)
+         SELECT * FROM unnest(
+           $1::int[], $2::text[], $3::int[], $4::text[], $5::int[],
+           $6::int[], $7::text[], $8::bool[], $9::bool[], $10::text[]
+         ) AS t(dg_id, player_name, event_id, event_name, year,
+                finish_position, finish_label, made_cut, withdrew, earnings)
+         ON CONFLICT (dg_id, event_id, year) DO UPDATE SET
+           player_name    = EXCLUDED.player_name,
+           event_name     = EXCLUDED.event_name,
+           finish_position = EXCLUDED.finish_position,
+           finish_label   = EXCLUDED.finish_label,
+           made_cut       = EXCLUDED.made_cut,
+           withdrew       = EXCLUDED.withdrew,
+           earnings       = EXCLUDED.earnings`,
+        [dgIds, playerNames, eventIds, eventNames, years,
+         positions, labels, madeCuts, withdrews, earnings]
+      );
     }
 
     // 6. Compute per-player aggregates and upsert into course_performance_summary
@@ -143,32 +156,39 @@ export async function POST() {
 
     const eventNameForSummary = yearsWithData[0]?.event_name || tournament.event_name;
 
-    for (const row of summaryRows) {
+    if (summaryRows.length > 0) {
       await query(
-        `INSERT INTO course_performance_summary (
-           dg_id, player_name, event_id, event_name,
-           times_played, times_made_cut, cut_percentage, average_finish, best_finish,
-           last_updated
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        `INSERT INTO course_performance_summary
+           (dg_id, player_name, event_id, event_name,
+            times_played, times_made_cut, cut_percentage, average_finish, best_finish,
+            last_updated)
+         SELECT u.dg_id, u.player_name, u.event_id, u.event_name,
+                u.times_played, u.times_made_cut, u.cut_percentage, u.average_finish, u.best_finish,
+                NOW()
+         FROM unnest(
+           $1::int[], $2::text[], $3::int[], $4::text[],
+           $5::int[], $6::int[], $7::numeric[], $8::numeric[], $9::int[]
+         ) AS u(dg_id, player_name, event_id, event_name,
+                times_played, times_made_cut, cut_percentage, average_finish, best_finish)
          ON CONFLICT (dg_id, event_id) DO UPDATE SET
-           player_name = EXCLUDED.player_name,
-           event_name = EXCLUDED.event_name,
-           times_played = EXCLUDED.times_played,
+           player_name    = EXCLUDED.player_name,
+           event_name     = EXCLUDED.event_name,
+           times_played   = EXCLUDED.times_played,
            times_made_cut = EXCLUDED.times_made_cut,
            cut_percentage = EXCLUDED.cut_percentage,
            average_finish = EXCLUDED.average_finish,
-           best_finish = EXCLUDED.best_finish,
-           last_updated = NOW()`,
+           best_finish    = EXCLUDED.best_finish,
+           last_updated   = NOW()`,
         [
-          row.dg_id,
-          row.player_name,
-          eventId,
-          eventNameForSummary,
-          row.times_played,
-          row.times_made_cut,
-          row.cut_percentage,
-          row.average_finish,
-          row.best_finish,
+          summaryRows.map((r: any) => r.dg_id),
+          summaryRows.map((r: any) => r.player_name),
+          summaryRows.map(() => eventId),
+          summaryRows.map(() => eventNameForSummary),
+          summaryRows.map((r: any) => r.times_played),
+          summaryRows.map((r: any) => r.times_made_cut),
+          summaryRows.map((r: any) => r.cut_percentage),
+          summaryRows.map((r: any) => r.average_finish),
+          summaryRows.map((r: any) => r.best_finish),
         ]
       );
     }
