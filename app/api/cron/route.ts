@@ -51,6 +51,14 @@ export async function GET(request: NextRequest) {
     results.form = { error: error instanceof Error ? error.message : 'Failed' };
   }
 
+  // 4b. Sync course history for the current tournament
+  try {
+    const res = await fetch(`${baseUrl}/api/sync-course-history`, { method: 'POST' });
+    results.courseHistory = await res.json();
+  } catch (error) {
+    results.courseHistory = { error: error instanceof Error ? error.message : 'Failed' };
+  }
+
   // 5. Auto-complete past tournaments and fetch winners from DataGolf
   try {
     const res = await fetch(`${baseUrl}/api/update-completed-tournaments`, { method: 'POST' });

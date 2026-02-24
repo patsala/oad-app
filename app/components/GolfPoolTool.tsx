@@ -101,6 +101,23 @@ interface PlayerRecommendation {
     baseline_pred: number;
     final_pred: number;
   } | null;
+  course_history?: {
+    times_played: number;
+    times_made_cut: number;
+    cut_percentage: number;
+    average_finish: number | null;
+    best_finish: number | null;
+  } | null;
+}
+
+interface CourseSpecialist {
+  dg_id: number;
+  player_name: string;
+  times_played: number;
+  times_made_cut: number;
+  cut_percentage: number;
+  average_finish: number | null;
+  best_finish: number | null;
 }
 
 // Helper function for dollar formatting
@@ -497,6 +514,11 @@ const GolfPoolTool = () => {
   const [nextMajor, setNextMajor] = useState<{ name: string; weeks_away: number } | null>(null);
   const [loadingNarrativeFor, setLoadingNarrativeFor] = useState<number | null>(null);
   const [narrativeError, setNarrativeError] = useState<{ playerId: number; message: string } | null>(null);
+  const [courseSpecialists, setCourseSpecialists] = useState<CourseSpecialist[]>([]);
+  const [showSpecialists, setShowSpecialists] = useState(false);
+  const [courseHistoryDetail, setCourseHistoryDetail] = useState<Record<number, any[]>>({});
+  const [expandedCourseHistory, setExpandedCourseHistory] = useState<Record<number, boolean>>({});
+  const [loadingCourseHistory, setLoadingCourseHistory] = useState<Record<number, boolean>>({});
   
   // Segment standings
   const [segmentStandings, setSegmentStandings] = useState<SegmentStanding[]>([]);
@@ -641,6 +663,7 @@ const GolfPoolTool = () => {
         const data = await response.json();
         setRecommendations(data.top_picks || []);
         setNextMajor(data.next_major);
+        setCourseSpecialists(data.course_specialists || []);
       } else {
         console.error('Failed to load recommendations');
       }
@@ -648,6 +671,27 @@ const GolfPoolTool = () => {
     } catch (error) {
       console.error('Failed to load recommendations:', error);
       setLoadingRecommendations(false);
+    }
+  };
+
+  const loadCourseHistoryDetail = async (dgId: number, eventId: string | number) => {
+    if (dgId in courseHistoryDetail) {
+      setExpandedCourseHistory(prev => ({ ...prev, [dgId]: !prev[dgId] }));
+      return;
+    }
+    setLoadingCourseHistory(prev => ({ ...prev, [dgId]: true }));
+    setExpandedCourseHistory(prev => ({ ...prev, [dgId]: true }));
+    try {
+      const res = await fetch(`/api/course-history?dg_id=${dgId}&event_id=${eventId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCourseHistoryDetail(prev => ({ ...prev, [dgId]: data.history || [] }));
+      }
+    } catch (error) {
+      console.error('Failed to load course history detail:', error);
+      setCourseHistoryDetail(prev => ({ ...prev, [dgId]: [] }));
+    } finally {
+      setLoadingCourseHistory(prev => ({ ...prev, [dgId]: false }));
     }
   };
 
@@ -1094,6 +1138,49 @@ const GolfPoolTool = () => {
             </div>
           </div>
 
+          {/* Course Specialists */}
+          {courseSpecialists.length > 0 && (
+            <div className="max-w-7xl mx-auto mb-4">
+              <div className="glass rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setShowSpecialists(s => !s)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-masters-dark/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Map className="w-4 h-4 text-masters-yellow" />
+                    <span className="font-semibold text-sm text-masters-yellow">COURSE SPECIALISTS</span>
+                    <span className="text-xs text-green-300/40">
+                      Players with best history at {currentTournament?.course_name}
+                    </span>
+                  </div>
+                  <span className="text-green-300/40 text-sm">{showSpecialists ? '▲' : '▼'}</span>
+                </button>
+                {showSpecialists && (
+                  <div className="border-t border-green-800/30 px-4 pb-3">
+                    <div className="space-y-1.5 pt-2">
+                      {courseSpecialists.map((s, i) => (
+                        <div key={s.dg_id} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-300/40 w-5 text-right font-mono text-xs">{i + 1}.</span>
+                            <span className="font-semibold">{s.player_name}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-green-200/60">
+                            <span>{s.times_played} starts</span>
+                            {s.average_finish != null && <span>Avg T{Math.round(s.average_finish)}</span>}
+                            {s.best_finish != null && (
+                              <span>Best {s.best_finish === 1 ? 'Win' : `T${s.best_finish}`}</span>
+                            )}
+                            <span>{Math.round(Number(s.cut_percentage))}% cuts</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {loadingRecommendations ? (
             <div className="max-w-7xl mx-auto glass rounded-2xl p-12 text-center">
               <div className="text-green-200/60">Loading recommendations...</div>
@@ -1255,6 +1342,57 @@ const GolfPoolTool = () => {
                         </div>
                       )}
                     </div>
+
+                    {/* Course History */}
+                    {rec.course_history && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => loadCourseHistoryDetail(rec.dg_id, currentTournament?.id || '')}
+                          className="w-full flex items-center justify-between text-xs text-green-300/60 hover:text-green-100 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-green-200/60">Course History</span>
+                            <span className="text-green-300/40">
+                              {rec.course_history.times_played} starts
+                              {rec.course_history.average_finish != null && ` · Avg T${Math.round(rec.course_history.average_finish)}`}
+                              {rec.course_history.best_finish != null && ` · Best ${rec.course_history.best_finish === 1 ? 'Win' : `T${rec.course_history.best_finish}`}`}
+                              {` · ${Math.round(Number(rec.course_history.cut_percentage))}% cuts`}
+                            </span>
+                          </div>
+                          <span className="text-green-300/40">
+                            {loadingCourseHistory[rec.dg_id] ? '···' : expandedCourseHistory[rec.dg_id] ? '▲' : '▼'}
+                          </span>
+                        </button>
+                        {expandedCourseHistory[rec.dg_id] && (
+                          <div className="mt-1.5 border border-green-800/30 rounded-lg p-2">
+                            {loadingCourseHistory[rec.dg_id] ? (
+                              <div className="text-xs text-green-300/40 text-center py-1">Loading...</div>
+                            ) : courseHistoryDetail[rec.dg_id]?.length > 0 ? (
+                              <div className="space-y-0.5">
+                                {courseHistoryDetail[rec.dg_id].map((h: any, i: number) => (
+                                  <div key={i} className="flex items-center justify-between text-xs">
+                                    <span className="text-green-300/40">{h.year}</span>
+                                    <span className={`font-semibold ${
+                                      h.withdrew ? 'text-orange-400' :
+                                      !h.made_cut ? 'text-red-400' :
+                                      parseInt(String(h.finish_label).replace(/^T/, ''), 10) <= 10 ? 'text-green-400' :
+                                      'text-green-200/60'
+                                    }`}>
+                                      {h.finish_label}
+                                    </span>
+                                    {h.earnings && (
+                                      <span className="text-green-300/40">{h.earnings}</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-green-300/40 text-center py-1">No historical data found</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Recent Form */}
                     {rec.form && (

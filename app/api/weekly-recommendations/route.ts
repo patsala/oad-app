@@ -170,6 +170,20 @@ export async function GET() {
     } catch {
       // player_form table not yet created
     }
+
+    // Fetch course history summary for current tournament (optional)
+    const courseHistoryMap = new Map<number, any>();
+    try {
+      const chRows = await query(
+        `SELECT dg_id, times_played, times_made_cut, cut_percentage, average_finish, best_finish
+         FROM course_performance_summary
+         WHERE event_id = $1`,
+        [tournament.id]
+      );
+      chRows.forEach((r: any) => courseHistoryMap.set(Number(r.dg_id), r));
+    } catch {
+      // player_form table not yet created
+    }
     
     // Fetch field, odds, probabilities, and DFS salaries — no-store ensures fresh odds every request
     const noStore = { cache: 'no-store' } as const;
@@ -308,6 +322,17 @@ export async function GET() {
             withdrawals_last_5: Number(f.withdrawals_last_5),
             last_5_results: f.last_5_results || [],
           };
+        })(),
+        course_history: (() => {
+          const ch = courseHistoryMap.get(fieldPlayer.dg_id);
+          if (!ch || !ch.times_played) return null;
+          return {
+            times_played: Number(ch.times_played),
+            times_made_cut: Number(ch.times_made_cut),
+            cut_percentage: Number(ch.cut_percentage),
+            average_finish: ch.average_finish ? Number(ch.average_finish) : null,
+            best_finish: ch.best_finish ? Number(ch.best_finish) : null,
+          };
         })()
       });
     }
@@ -348,18 +373,45 @@ export async function GET() {
     
     // Take top 20 for display
     const finalRecs = recommendations.slice(0, 20);
-    
+
+    // Course specialists: players with best avg finish at this course (min 3 starts)
+    let courseSpecialists: any[] = [];
+    try {
+      courseSpecialists = await query(
+        `SELECT dg_id, player_name, times_played, times_made_cut, cut_percentage,
+                average_finish, best_finish
+         FROM course_performance_summary
+         WHERE event_id = $1 AND times_played >= 3
+         ORDER BY average_finish ASC NULLS LAST
+         LIMIT 15`,
+        [tournament.id]
+      );
+    } catch {
+      // course_performance_summary table not yet created
+    }
+
     return NextResponse.json({
       tournament: {
         name: tournament.event_name,
+        course: tournament.course_name,
         week: tournament.week_number,
         purse: tournament.purse,
         multiplier: tournament.multiplier,
-        segment: tournament.segment
+        segment: tournament.segment,
+        event_id: tournament.id
       },
       next_major: upcomingMajors?.[0] || null,
       top_picks: finalRecs,
-      total_in_field: preliminaryRecs.length
+      total_in_field: preliminaryRecs.length,
+      course_specialists: courseSpecialists.map((s: any) => ({
+        dg_id: Number(s.dg_id),
+        player_name: s.player_name,
+        times_played: Number(s.times_played),
+        times_made_cut: Number(s.times_made_cut),
+        cut_percentage: Number(s.cut_percentage),
+        average_finish: s.average_finish ? Number(s.average_finish) : null,
+        best_finish: s.best_finish ? Number(s.best_finish) : null,
+      }))
     });
     
   } catch (error) {
