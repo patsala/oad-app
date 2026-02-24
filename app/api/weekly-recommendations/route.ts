@@ -374,14 +374,14 @@ export async function GET() {
     // Take top 20 for display
     const finalRecs = recommendations.slice(0, 20);
 
-    // Course specialists: players with best avg finish at this course (min 3 starts)
+    // Course specialists: players with best avg finish at this course (min 1 start)
     let courseSpecialists: any[] = [];
     try {
       courseSpecialists = await query(
         `SELECT dg_id, player_name, times_played, times_made_cut, cut_percentage,
                 average_finish, best_finish
          FROM course_performance_summary
-         WHERE event_id = $1 AND times_played >= 2
+         WHERE event_id = $1 AND times_played >= 1
          ORDER BY average_finish ASC NULLS LAST
          LIMIT 15`,
         [tournament.id]

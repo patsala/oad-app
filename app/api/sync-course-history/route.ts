@@ -46,73 +46,35 @@ export async function POST() {
     const eventId = Number(tournament.id);
     const currentYear = new Date().getFullYear();
 
-    // 2. Fetch the full historical event list to find which years this event ran
+    // 2. Fetch the raw-data event list to find all past years for this event_id.
+    //    historical-raw-data/event-list covers PGA Tour back to the 1980s, unlike
+    //    historical-event-data/event-list which only covers recent seasons.
     const eventListRes = await fetch(
-      `https://feeds.datagolf.com/historical-event-data/event-list?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
+      `https://feeds.datagolf.com/historical-raw-data/event-list?tour=pga&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
     );
     if (!eventListRes.ok) {
       return NextResponse.json({ success: false, message: `event-list fetch failed: ${eventListRes.status}` }, { status: 500 });
     }
-    const eventListData = await eventListRes.json();
-    const allEvents: any[] = eventListData.events || eventListData || [];
+    const allEvents: any[] = await eventListRes.json();
 
-    // Known name aliases for renamed tournaments (substring match on current event name)
-    const TOURNAMENT_ALIASES: Record<string, string[]> = {
-      'Cognizant Classic': ['Honda Classic'],
-      'RBC Heritage': ['Heritage Classic', 'MCI Heritage'],
-      'Travelers Championship': ['Buick Championship', 'Greater Hartford Open'],
-      // Add more as needed
-    };
+    // 3. Find the last 7 past years this event_id was played
+    const candidateYears = allEvents
+      .filter((e: any) => Number(e.event_id) === eventId && e.calendar_year < currentYear)
+      .sort((a: any, b: any) => b.calendar_year - a.calendar_year)
+      .slice(0, 7)
+      .map((e: any) => ({ year: e.calendar_year, event_name: e.event_name }));
 
-    const aliasNames: string[] = Object.entries(TOURNAMENT_ALIASES)
-      .filter(([key]) => tournament.event_name.includes(key))
-      .flatMap(([, aliases]) => aliases);
-
-    // 3. Build candidate years to try.
-    //    The global event-list only covers recent seasons, so we combine:
-    //    a) Matches from the event-list (by event_id or alias name)
-    //    b) Direct probes for the last 7 years using the current event_id
-    //       — DataGolf's historical events endpoint has data accessible by event_id+year
-    //         even when the event-list doesn't include older seasons.
-    const seenYears = new Set<number>();
-    const candidatesFromList = allEvents
-      .filter((e: any) => {
-        const pastYear = e.calendar_year < currentYear;
-        const matchById = Number(e.event_id) === eventId;
-        const matchByAlias = aliasNames.some((alias: string) =>
-          (e.event_name || '').toLowerCase().includes(alias.toLowerCase())
-        );
-        return pastYear && (matchById || matchByAlias);
-      })
-      .map((e: any) => ({ year: e.calendar_year, event_name: e.event_name, fetch_event_id: e.event_id }));
-
-    // Direct probes for the last 7 years as fallback for any gaps
-    const directProbes = Array.from({ length: 7 }, (_, i) => currentYear - 1 - i).map(year => ({
-      year,
-      event_name: tournament.event_name,
-      fetch_event_id: eventId,
-    }));
-
-    // Merge: event-list entries take priority (correct names), fill gaps with direct probes
-    const allCandidates = [...candidatesFromList, ...directProbes]
-      .sort((a, b) => b.year - a.year)
-      .filter(c => {
-        if (seenYears.has(c.year)) return false;
-        seenYears.add(c.year);
-        return true;
-      })
-      .slice(0, 7);
-
-    // 4. Fetch results in parallel; years with no data are silently dropped
+    // 4. Fetch round data in parallel; years with no data are silently dropped.
+    //    historical-raw-data/rounds returns { scores: [{dg_id, player_name, fin_text, ...}] }
     const yearResults = await Promise.all(
-      allCandidates.map(async ({ year, event_name, fetch_event_id }) => {
+      candidateYears.map(async ({ year, event_name }: { year: number; event_name: string }) => {
         try {
           const res = await fetch(
-            `https://feeds.datagolf.com/historical-event-data/events?tour=pga&event_id=${fetch_event_id}&year=${year}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
+            `https://feeds.datagolf.com/historical-raw-data/rounds?tour=pga&event_id=${eventId}&year=${year}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
           );
           if (!res.ok) return { year, event_name, players: [] };
           const data = await res.json();
-          const players = data.event_stats || data.results || data.leaderboard || [];
+          const players = data.scores || [];
           return { year, event_name, players };
         } catch {
           return { year, event_name, players: [] };

@@ -18,7 +18,17 @@ export async function GET(request: Request) {
       `https://feeds.datagolf.com/historical-event-data/events?tour=pga&event_id=${eventId}&year=${year}&file_format=json&key=${key}`
     );
     const status = res.status;
-    const data = await res.json();
+    const rawText = await res.text();
+    let data: any;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      return NextResponse.json({
+        http_status: status,
+        parse_error: true,
+        raw_text_preview: rawText.slice(0, 1000),
+      });
+    }
     const topKeys = data ? Object.keys(data) : [];
     const firstEntry = Array.isArray(data) ? data[0] :
       (data.event_stats?.[0] ?? data.results?.[0] ?? data.leaderboard?.[0] ?? data[topKeys[0]]?.[0] ?? null);

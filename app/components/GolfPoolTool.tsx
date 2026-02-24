@@ -1148,9 +1148,9 @@ const GolfPoolTool = () => {
                 >
                   <div className="flex items-center gap-2">
                     <Map className="w-4 h-4 text-masters-yellow" />
-                    <span className="font-semibold text-sm text-masters-yellow">COURSE SPECIALISTS</span>
+                    <span className="font-semibold text-sm text-masters-yellow">COURSE HISTORY</span>
                     <span className="text-xs text-green-300/40">
-                      Players with best history at {currentTournament?.course_name}
+                      Best performers at {currentTournament?.course_name}
                     </span>
                   </div>
                   <span className="text-green-300/40 text-sm">{showSpecialists ? '▲' : '▼'}</span>
