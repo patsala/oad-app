@@ -211,7 +211,7 @@ const TournamentFieldTab = () => {
           </div>
           <div className="flex items-center gap-6">
             <div className="w-16 text-right hidden md:block"><SortHeader label="OWGR" sortKey="owgr" className="justify-end" /></div>
-            <div className="w-20 text-right"><SortHeader label="DK Odds" sortKey="win_odds" className="justify-end" /></div>
+            <div className="w-20 text-right"><SortHeader label="Odds" sortKey="win_odds" className="justify-end" /></div>
             <div className="w-16 text-right hidden md:block"><SortHeader label="Win %" sortKey="win_probability" className="justify-end" /></div>
             <div className="w-16 text-right hidden md:block"><SortHeader label="Cut %" sortKey="make_cut_probability" className="justify-end" /></div>
             <div className="w-20 text-right hidden md:block"><SortHeader label="DK Salary" sortKey="dk_salary" className="justify-end" /></div>
@@ -1154,7 +1154,7 @@ const GolfPoolTool = () => {
                     <div className="space-y-2.5">
                       <div className="flex flex-wrap gap-1.5 text-xs">
                         <div className="bg-masters-dark/30 rounded px-2 py-1">
-                          <span className="text-green-300/40">DK Odds </span>
+                          <span className="text-green-300/40">Odds </span>
                           <span className="font-bold text-masters-yellow">{formatOdds(rec.win_odds)}</span>
                         </div>
                         <div className="bg-masters-dark/30 rounded px-2 py-1">
