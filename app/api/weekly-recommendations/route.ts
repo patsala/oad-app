@@ -381,7 +381,7 @@ export async function GET() {
         `SELECT dg_id, player_name, times_played, times_made_cut, cut_percentage,
                 average_finish, best_finish
          FROM course_performance_summary
-         WHERE event_id = $1 AND times_played >= 3
+         WHERE event_id = $1 AND times_played >= 2
          ORDER BY average_finish ASC NULLS LAST
          LIMIT 15`,
         [tournament.id]

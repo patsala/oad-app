@@ -213,6 +213,12 @@ export async function POST() {
       success: true,
       event_name: tournament.event_name,
       event_id: eventId,
+      alias_names_used: aliasNames,
+      years_found_in_event_list: matchingYears.map(e => ({
+        year: e.calendar_year,
+        event_name: e.event_name,
+        fetch_event_id: e.event_id,
+      })),
       years_fetched: yearsWithData.map(r => ({ year: r.year, players: r.players.length })),
       history_rows_upserted: totalInserted,
       players_in_summary: summaryRows.length,
