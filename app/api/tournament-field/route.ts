@@ -44,14 +44,16 @@ export async function GET() {
       const playerProb = probabilities.find((p: any) => p.dg_id === player.dg_id);
       const playerDfs = dfsProjections.find((d: any) => d.dg_id === player.dg_id);
 
-      // Prefer bet365 → FanDuel → William Hill → DraftKings → BetMGM → Pinnacle → DG baseline → DG baseline_history_fit
+      // Prefer bet365 → William Hill → FanDuel → DraftKings → BetMGM → Caesars → Bovada → DG baseline → DG baseline_history_fit
       const parseOdds = (v: any) => v ? parseInt(String(v).replace('+', '')) || null : null;
       const win_odds = parseOdds(playerOdds?.bet365)
-        ?? parseOdds(playerOdds?.fanduel)
         ?? parseOdds(playerOdds?.williamhill)
+        ?? parseOdds(playerOdds?.fanduel)
         ?? parseOdds(playerOdds?.draftkings)
         ?? parseOdds(playerOdds?.betmgm)
-        ?? parseOdds(playerOdds?.pinnacle)
+        ?? parseOdds(playerOdds?.caesars)
+        ?? parseOdds(playerOdds?.bovada)
+        ?? parseOdds(playerOdds?.betonline)
         ?? parseOdds(playerOdds?.datagolf?.baseline)
         ?? parseOdds(playerOdds?.datagolf?.baseline_history_fit)
         ?? null;

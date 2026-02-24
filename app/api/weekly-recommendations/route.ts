@@ -218,13 +218,15 @@ export async function GET() {
 
       if (!playerProb) continue;
 
-      // Prefer bet365 → FanDuel → William Hill → DraftKings → BetMGM → Pinnacle → DG baseline → DG baseline_history_fit
+      // Prefer bet365 → William Hill → FanDuel → DraftKings → BetMGM → Caesars → Bovada → DG baseline → DG baseline_history_fit
       const winOdds = parseOdds(playerOdds?.bet365)
-        || parseOdds(playerOdds?.fanduel)
         || parseOdds(playerOdds?.williamhill)
+        || parseOdds(playerOdds?.fanduel)
         || parseOdds(playerOdds?.draftkings)
         || parseOdds(playerOdds?.betmgm)
-        || parseOdds(playerOdds?.pinnacle)
+        || parseOdds(playerOdds?.caesars)
+        || parseOdds(playerOdds?.bovada)
+        || parseOdds(playerOdds?.betonline)
         || parseOdds(playerOdds?.datagolf?.baseline)
         || parseOdds(playerOdds?.datagolf?.baseline_history_fit)
         || null;
