@@ -403,7 +403,9 @@ const FormSection = ({ form }: { form: NonNullable<PlayerRecommendation['form']>
         className="w-full flex items-center justify-between text-xs text-green-300/60 hover:text-green-100 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-green-200/60">Recent Form</span>
+          <span className="font-semibold text-green-200/60">
+            Recent Form <span className="font-normal text-green-300/40">(last {form.last_5_results.length})</span>
+          </span>
           {badge && (
             <span className={`px-1.5 py-0.5 border rounded-full text-[10px] font-bold ${badge.cls}`}>
               {badge.label}
