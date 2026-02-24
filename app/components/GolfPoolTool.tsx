@@ -1210,45 +1210,66 @@ const GolfPoolTool = () => {
                           </div>
                         ))}
                       </div>
-                    ) : weatherData && weatherData.forecast.length > 0 ? (
-                      <>
-                        <div className="grid grid-cols-4 gap-3 mb-3">
-                          {weatherData.forecast.map(day => (
-                            <div key={day.date} className="bg-masters-dark/40 rounded-lg p-3 text-center">
-                              <div className="text-xs text-green-300/40 font-semibold mb-1">
-                                {day.day.substring(0, 3).toUpperCase()}
+                    ) : weatherData && weatherData.forecast.length > 0 ? (() => {
+                        const wp = Math.max(...weatherData.forecast.map(d => d.precipitation), 0);
+                        const ww = Math.max(...weatherData.forecast.map(d => d.wind_speed), 0);
+                        const insight = wp > 35
+                          ? { icon: '💧', title: 'Soft Conditions', body: `Rain (up to ${wp}% chance) will soften the course and reduce rollout. Distance off the tee matters more on soft tracks — longer hitters gain a relative edge.` }
+                          : ww > 15
+                          ? { icon: '🌬️', title: 'Windy Conditions', body: `Wind up to ${ww} mph puts a premium on accuracy and trajectory control. Approach specialists who control ball flight tend to score better in these conditions.` }
+                          : { icon: '☀️', title: 'Benign Forecast', body: 'Favorable conditions this week — the course will play straightforward and overall ball-striking quality is the main differentiator.' };
+                        return (
+                          <>
+                            <div className="flex gap-3 mb-3">
+                              <div className="grid grid-cols-4 gap-3 flex-1">
+                                {weatherData.forecast.map(day => (
+                                  <div key={day.date} className="bg-masters-dark/40 rounded-lg p-3 text-center">
+                                    <div className="text-xs text-green-300/40 font-semibold mb-1">
+                                      {day.day.substring(0, 3).toUpperCase()}
+                                    </div>
+                                    <div className="text-2xl mb-1">{day.icon}</div>
+                                    <div className="text-sm font-bold text-green-50">
+                                      {day.temp_high}°
+                                      {day.temp_low != null && (
+                                        <span className="text-green-300/40 font-normal">/{day.temp_low}°</span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-green-300/40 mt-1">
+                                      {day.wind_speed} mph {day.wind_direction}
+                                    </div>
+                                    <div className="text-xs text-blue-300/70 mt-0.5">
+                                      {day.precipitation > 0 ? `${day.precipitation}% rain` : 'No rain'}
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
-                              <div className="text-2xl mb-1">{day.icon}</div>
-                              <div className="text-sm font-bold text-green-50">
-                                {day.temp_high}°
-                                {day.temp_low != null && (
-                                  <span className="text-green-300/40 font-normal">/{day.temp_low}°</span>
-                                )}
-                              </div>
-                              <div className="text-xs text-green-300/40 mt-1">
-                                {day.wind_speed} mph {day.wind_direction}
-                              </div>
-                              <div className="text-xs text-blue-300/70 mt-0.5">
-                                {day.precipitation > 0 ? `${day.precipitation}% rain` : 'No rain'}
+                              {/* Weather Insight panel */}
+                              <div className="w-44 shrink-0 bg-masters-dark/40 rounded-lg p-3 flex flex-col justify-center">
+                                <div className="text-xs font-semibold text-masters-yellow/70 uppercase tracking-wide mb-1">
+                                  Weather Insight
+                                </div>
+                                <div className="text-base mb-1">{insight.icon}</div>
+                                <div className="text-xs font-semibold text-green-100 mb-1.5">{insight.title}</div>
+                                <div className="text-xs text-green-300/50 leading-relaxed">{insight.body}</div>
                               </div>
                             </div>
-                          ))}
-                        </div>
-                        {weatherData.impact && (
-                          <div className={`rounded-lg px-3 py-2 flex items-start gap-2 text-sm ${
-                            weatherData.impact.severity === 'high'
-                              ? 'bg-red-900/30 border border-red-500/30 text-red-300'
-                              : 'bg-amber-900/30 border border-amber-500/30 text-amber-300'
-                          }`}>
-                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                            <div>
-                              <span className="font-semibold">{weatherData.impact.message}</span>
-                              <span className="text-xs ml-2 opacity-70">Favors: {weatherData.impact.favors}</span>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    ) : null}
+                            {weatherData.impact && (
+                              <div className={`rounded-lg px-3 py-2 flex items-start gap-2 text-sm ${
+                                weatherData.impact.severity === 'high'
+                                  ? 'bg-red-900/30 border border-red-500/30 text-red-300'
+                                  : 'bg-amber-900/30 border border-amber-500/30 text-amber-300'
+                              }`}>
+                                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="font-semibold">{weatherData.impact.message}</span>
+                                  <span className="text-xs ml-2 opacity-70">Favors: {weatherData.impact.favors}</span>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()
+                    : null}
                   </div>
                 )}
               </div>
@@ -1327,6 +1348,7 @@ const GolfPoolTool = () => {
                       className="w-full flex items-center justify-between px-4 py-3 hover:bg-masters-dark/30 transition-colors"
                     >
                       <div className="flex items-center gap-2">
+                        <span className="text-xs text-green-300/40 font-semibold uppercase tracking-wide">Weather Insight:</span>
                         <span className="text-base">
                           {metric === 'sg_ott' ? '💪' : metric === 'sg_app' ? '🎯' : '⛳'}
                         </span>
