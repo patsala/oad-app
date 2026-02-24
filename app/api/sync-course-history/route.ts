@@ -68,11 +68,12 @@ export async function POST() {
       .filter(([key]) => tournament.event_name.includes(key))
       .flatMap(([, aliases]) => aliases);
 
-    // 3. Build candidate years to try:
-    //    a) Years found in event-list by event_id or alias name
-    //    b) Direct probe: last 7 years using the current tournament's event_id
-    //       (DataGolf's event-list only covers recent seasons, but the historical
-    //        events API has older data accessible by event_id + year directly)
+    // 3. Build candidate years to try.
+    //    The global event-list only covers recent seasons, so we combine:
+    //    a) Matches from the event-list (by event_id or alias name)
+    //    b) Direct probes for the last 7 years using the current event_id
+    //       — DataGolf's historical events endpoint has data accessible by event_id+year
+    //         even when the event-list doesn't include older seasons.
     const seenYears = new Set<number>();
     const candidatesFromList = allEvents
       .filter((e: any) => {
@@ -85,14 +86,14 @@ export async function POST() {
       })
       .map((e: any) => ({ year: e.calendar_year, event_name: e.event_name, fetch_event_id: e.event_id }));
 
-    // Direct probes for the last 7 years using our tournament's own event_id
+    // Direct probes for the last 7 years as fallback for any gaps
     const directProbes = Array.from({ length: 7 }, (_, i) => currentYear - 1 - i).map(year => ({
       year,
       event_name: tournament.event_name,
       fetch_event_id: eventId,
     }));
 
-    // Merge: prefer event-list entries (they have the correct name), fill in gaps with direct probes
+    // Merge: event-list entries take priority (correct names), fill gaps with direct probes
     const allCandidates = [...candidatesFromList, ...directProbes]
       .sort((a, b) => b.year - a.year)
       .filter(c => {
@@ -214,8 +215,6 @@ export async function POST() {
       success: true,
       event_name: tournament.event_name,
       event_id: eventId,
-      alias_names_used: aliasNames,
-      years_probed: allCandidates.map(c => ({ year: c.year, event_name: c.event_name, fetch_event_id: c.fetch_event_id })),
       years_fetched: yearsWithData.map(r => ({ year: r.year, players: r.players.length })),
       history_rows_upserted: totalInserted,
       players_in_summary: summaryRows.length,
