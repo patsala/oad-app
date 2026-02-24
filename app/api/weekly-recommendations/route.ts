@@ -197,7 +197,6 @@ export async function GET() {
       if (!dbPlayer) continue;
       
       const playerOdds = currentOdds.find((o: any) => o.dg_id === fieldPlayer.dg_id);
-      if (!playerOdds) continue;
 
       const playerProb = probabilities.find((p: any) => p.dg_id === fieldPlayer.dg_id);
       const playerProbCourseFit = probabilitiesCourseFit.find((p: any) => p.dg_id === fieldPlayer.dg_id);
@@ -207,9 +206,11 @@ export async function GET() {
 
       const isUsed = dbPlayer.used_in_tournament_id !== null;
 
-      // Prefer DraftKings odds, fall back to DataGolf model odds
-      const winOdds = parseOdds(playerOdds.draftkings) || parseOdds(playerOdds.datagolf?.baseline);
-      if (!winOdds) continue;
+      // Prefer DraftKings → DG baseline → DG baseline_history_fit
+      const winOdds = parseOdds(playerOdds?.draftkings)
+        || parseOdds(playerOdds?.datagolf?.baseline)
+        || parseOdds(playerOdds?.datagolf?.baseline_history_fit)
+        || null;
       
       const winProb = playerProb.win || 0;
       const top5Prob = playerProb.top_5 || 0;

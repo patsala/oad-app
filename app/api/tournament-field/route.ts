@@ -44,13 +44,12 @@ export async function GET() {
       const playerProb = probabilities.find((p: any) => p.dg_id === player.dg_id);
       const playerDfs = dfsProjections.find((d: any) => d.dg_id === player.dg_id);
 
-      // Prefer DraftKings odds, fall back to DataGolf model odds, null if neither available
-      let win_odds: number | null = null;
-      if (playerOdds?.draftkings) {
-        win_odds = parseInt(String(playerOdds.draftkings).replace('+', ''));
-      } else if (playerOdds?.datagolf?.baseline) {
-        win_odds = parseInt(String(playerOdds.datagolf.baseline).replace('+', ''));
-      }
+      // Prefer DraftKings → DG baseline → DG baseline_history_fit
+      const parseOdds = (v: any) => v ? parseInt(String(v).replace('+', '')) || null : null;
+      const win_odds = parseOdds(playerOdds?.draftkings)
+        ?? parseOdds(playerOdds?.datagolf?.baseline)
+        ?? parseOdds(playerOdds?.datagolf?.baseline_history_fit)
+        ?? null;
 
       return {
         name: player.player_name,
