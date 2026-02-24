@@ -120,6 +120,30 @@ interface CourseSpecialist {
   best_finish: number | null;
 }
 
+interface WeatherForecastDay {
+  date: string;
+  day: string;
+  temp_high: number;
+  temp_low: number | null;
+  wind_speed: number;
+  wind_direction: string;
+  precipitation: number;
+  conditions: string;
+  icon: string;
+}
+
+interface WeatherData {
+  tournament_name: string;
+  course_name: string;
+  start_date: string;
+  forecast: WeatherForecastDay[];
+  impact: {
+    severity: 'low' | 'medium' | 'high';
+    message: string;
+    favors: string;
+  } | null;
+}
+
 // Helper function for dollar formatting
 const formatDollar = (amount: number) => {
   return '$' + Math.round(amount).toLocaleString();
@@ -533,6 +557,11 @@ const GolfPoolTool = () => {
   // Reservations state (for rec card badges)
   const [reservations, setReservations] = useState<{dg_id: number; player_name: string; week_number: number; event_name?: string}[]>([]);
 
+  // Weather state
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+  const [loadingWeather, setLoadingWeather] = useState(true);
+  const [showWeather, setShowWeather] = useState(true);
+
   // Load data on mount
   useEffect(() => {
     loadCurrentTournament();
@@ -541,6 +570,7 @@ const GolfPoolTool = () => {
     loadSegmentStandings();
     loadRecommendations();
     loadReservations();
+    loadWeather();
   }, []);
 
   // Filter players based on search
@@ -622,6 +652,17 @@ const GolfPoolTool = () => {
       }
     } catch (error) {
       console.error('Failed to load reservations:', error);
+    }
+  };
+
+  const loadWeather = async () => {
+    try {
+      const res = await fetch('/api/tournament-weather');
+      if (res.ok) setWeatherData(await res.json());
+    } catch (error) {
+      console.error('Failed to load weather:', error);
+    } finally {
+      setLoadingWeather(false);
     }
   };
 
@@ -1137,6 +1178,81 @@ const GolfPoolTool = () => {
               </button>
             </div>
           </div>
+
+          {/* Tournament Weather */}
+          {(loadingWeather || weatherData) && (
+            <div className="max-w-7xl mx-auto mb-4">
+              <div className="glass rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setShowWeather(s => !s)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-masters-dark/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🌤️</span>
+                    <span className="font-semibold text-sm text-masters-yellow">TOURNAMENT WEATHER</span>
+                    {weatherData && (
+                      <span className="text-xs text-green-300/40">{weatherData.course_name}</span>
+                    )}
+                  </div>
+                  <span className="text-green-300/40 text-sm">{showWeather ? '▲' : '▼'}</span>
+                </button>
+
+                {showWeather && (
+                  <div className="border-t border-green-800/30 px-4 pb-4 pt-3">
+                    {loadingWeather ? (
+                      <div className="grid grid-cols-4 gap-3">
+                        {[0, 1, 2, 3].map(i => (
+                          <div key={i} className="bg-masters-dark/40 rounded-lg p-3 animate-pulse">
+                            <div className="h-3 bg-green-800/40 rounded mb-2 w-3/4" />
+                            <div className="h-6 bg-green-800/40 rounded mb-2" />
+                            <div className="h-3 bg-green-800/40 rounded w-1/2" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : weatherData && weatherData.forecast.length > 0 ? (
+                      <>
+                        <div className="grid grid-cols-4 gap-3 mb-3">
+                          {weatherData.forecast.map(day => (
+                            <div key={day.date} className="bg-masters-dark/40 rounded-lg p-3 text-center">
+                              <div className="text-xs text-green-300/40 font-semibold mb-1">
+                                {day.day.substring(0, 3).toUpperCase()}
+                              </div>
+                              <div className="text-2xl mb-1">{day.icon}</div>
+                              <div className="text-sm font-bold text-green-50">
+                                {day.temp_high}°
+                                {day.temp_low != null && (
+                                  <span className="text-green-300/40 font-normal">/{day.temp_low}°</span>
+                                )}
+                              </div>
+                              <div className="text-xs text-green-300/40 mt-1">
+                                {day.wind_speed} mph {day.wind_direction}
+                              </div>
+                              <div className="text-xs text-blue-300/70 mt-0.5">
+                                {day.precipitation > 0 ? `${day.precipitation}% rain` : 'No rain'}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {weatherData.impact && (
+                          <div className={`rounded-lg px-3 py-2 flex items-start gap-2 text-sm ${
+                            weatherData.impact.severity === 'high'
+                              ? 'bg-red-900/30 border border-red-500/30 text-red-300'
+                              : 'bg-amber-900/30 border border-amber-500/30 text-amber-300'
+                          }`}>
+                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-semibold">{weatherData.impact.message}</span>
+                              <span className="text-xs ml-2 opacity-70">Favors: {weatherData.impact.favors}</span>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Course Specialists */}
           {courseSpecialists.length > 0 && (
