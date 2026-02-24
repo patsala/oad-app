@@ -68,9 +68,13 @@ export async function POST() {
       .filter(([key]) => tournament.event_name.includes(key))
       .flatMap(([, aliases]) => aliases);
 
-    // 3. Find all past years where this event ran — by event_id OR by alias name
+    // 3. Build candidate years to try:
+    //    a) Years found in event-list by event_id or alias name
+    //    b) Direct probe: last 7 years using the current tournament's event_id
+    //       (DataGolf's event-list only covers recent seasons, but the historical
+    //        events API has older data accessible by event_id + year directly)
     const seenYears = new Set<number>();
-    const matchingYears = allEvents
+    const candidatesFromList = allEvents
       .filter((e: any) => {
         const pastYear = e.calendar_year < currentYear;
         const matchById = Number(e.event_id) === eventId;
@@ -79,41 +83,38 @@ export async function POST() {
         );
         return pastYear && (matchById || matchByAlias);
       })
-      .sort((a: any, b: any) => b.calendar_year - a.calendar_year)
-      // Deduplicate by year (in case both event_id match AND alias match for same year)
-      .filter((e: any) => {
-        if (seenYears.has(e.calendar_year)) return false;
-        seenYears.add(e.calendar_year);
+      .map((e: any) => ({ year: e.calendar_year, event_name: e.event_name, fetch_event_id: e.event_id }));
+
+    // Direct probes for the last 7 years using our tournament's own event_id
+    const directProbes = Array.from({ length: 7 }, (_, i) => currentYear - 1 - i).map(year => ({
+      year,
+      event_name: tournament.event_name,
+      fetch_event_id: eventId,
+    }));
+
+    // Merge: prefer event-list entries (they have the correct name), fill in gaps with direct probes
+    const allCandidates = [...candidatesFromList, ...directProbes]
+      .sort((a, b) => b.year - a.year)
+      .filter(c => {
+        if (seenYears.has(c.year)) return false;
+        seenYears.add(c.year);
         return true;
       })
       .slice(0, 7);
 
-    if (matchingYears.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: `No historical data found for event_id ${eventId} (${tournament.event_name})`,
-        years_fetched: [],
-        updated_players: 0,
-      });
-    }
-
-    // 4. Fetch results using each year's actual event_id from the event list
-    // (alias years may have a different event_id than the current tournament)
+    // 4. Fetch results in parallel; years with no data are silently dropped
     const yearResults = await Promise.all(
-      matchingYears.map(async (evt: any) => {
-        const year = evt.calendar_year;
-        const fetchEventId = evt.event_id; // may differ for alias/renamed events
-        const eventName = evt.event_name;
+      allCandidates.map(async ({ year, event_name, fetch_event_id }) => {
         try {
           const res = await fetch(
-            `https://feeds.datagolf.com/historical-event-data/events?tour=pga&event_id=${fetchEventId}&year=${year}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
+            `https://feeds.datagolf.com/historical-event-data/events?tour=pga&event_id=${fetch_event_id}&year=${year}&file_format=json&key=${process.env.DATAGOLF_API_KEY}`
           );
-          if (!res.ok) return { year, event_name: eventName, players: [] };
+          if (!res.ok) return { year, event_name, players: [] };
           const data = await res.json();
           const players = data.event_stats || data.results || data.leaderboard || [];
-          return { year, event_name: eventName, players };
+          return { year, event_name, players };
         } catch {
-          return { year, event_name: eventName, players: [] };
+          return { year, event_name, players: [] };
         }
       })
     );
@@ -214,11 +215,7 @@ export async function POST() {
       event_name: tournament.event_name,
       event_id: eventId,
       alias_names_used: aliasNames,
-      years_found_in_event_list: matchingYears.map(e => ({
-        year: e.calendar_year,
-        event_name: e.event_name,
-        fetch_event_id: e.event_id,
-      })),
+      years_probed: allCandidates.map(c => ({ year: c.year, event_name: c.event_name, fetch_event_id: c.fetch_event_id })),
       years_fetched: yearsWithData.map(r => ({ year: r.year, players: r.players.length })),
       history_rows_upserted: totalInserted,
       players_in_summary: summaryRows.length,
