@@ -387,10 +387,18 @@ export async function GET() {
     try {
       courseSpecialists = await query(
         `SELECT dg_id, player_name, times_played, times_made_cut, cut_percentage,
-                average_finish, best_finish
+                average_finish, best_finish,
+                -- Composite course score (descending = better):
+                --  • Cut rate (Bayesian smoothed) weighted 50 — penalises tiny samples
+                --  • Log appearances weighted 15 — rewards proven track record
+                --  • Inverse avg finish weighted 35 — better finish = higher score
+                (times_made_cut::float / (times_played + 1.5)) * 50
+                  + LN(times_played + 1) * 15
+                  + COALESCE((1.0 / NULLIF(average_finish::float, 0)) * 35, 0)
+                AS course_score
          FROM course_performance_summary
          WHERE event_id = $1 AND times_played >= 1
-         ORDER BY average_finish ASC NULLS LAST
+         ORDER BY course_score DESC
          LIMIT 15`,
         [tournament.id]
       );
