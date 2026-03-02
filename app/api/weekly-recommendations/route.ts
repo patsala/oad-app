@@ -110,17 +110,25 @@ function calculateSkillMatchScore(enrichment: any, courseType: string = 'accurac
 
 export async function GET() {
   try {
+    // Auto-complete any tournaments whose end_date has passed — mirrors current-tournament logic
+    // so recommendations always advance to the correct week without waiting for the cron.
+    const today = new Date().toISOString().split('T')[0];
+    await query(
+      `UPDATE tournaments SET is_completed = true WHERE end_date < $1 AND is_completed = false`,
+      [today]
+    );
+
     const currentTournament = await query(
-      `SELECT * FROM tournaments 
-       WHERE is_completed = false 
-       ORDER BY start_date ASC 
+      `SELECT * FROM tournaments
+       WHERE is_completed = false
+       ORDER BY start_date ASC
        LIMIT 1`
     );
-    
+
     if (!currentTournament || currentTournament.length === 0) {
       return NextResponse.json({ error: 'No upcoming tournament' }, { status: 404 });
     }
-    
+
     const tournament = currentTournament[0];
     
     // Get segment standings

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/app/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // Compute standings live from picks + tournaments so they always reflect
