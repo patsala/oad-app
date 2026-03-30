@@ -345,50 +345,49 @@ export async function GET() {
       });
     }
     
-    // Sort by enhanced ranking score (not just EV)
+    // Sort all by EV ranking score and assign each player their true field rank
     const sortedRecs = preliminaryRecs
       .sort((a, b) => b.ranking_score - a.ranking_score)
-      .slice(0, 50);
+      .slice(0, 60);
+    sortedRecs.forEach((r, i) => { r.field_rank = i + 1; });
 
-    const availableRecs = sortedRecs.filter(r => !r.is_used).slice(0, 20);
-    const usedRecs      = sortedRecs.filter(r =>  r.is_used);
+    // Top 20 stay in their natural EV rank order — used players remain in place (greyed out in UI)
+    const top20 = sortedRecs.slice(0, 20);
 
-    // Tier-label available players only
-    const recommendations: PlayerRecommendation[] = [];
+    // Pull enough unused fill-ins from beyond position 20 to compensate for used picks in top 20
+    const usedInTop20Count = top20.filter(r => r.is_used).length;
+    const fillIns = sortedRecs.slice(20).filter(r => !r.is_used).slice(0, usedInTop20Count);
+    fillIns.forEach(r => { r.is_fill_in = true; });
 
-    availableRecs.forEach((player, index) => {
-      let tier = 'VALUE PLAY';
-      let reasoning = 'Ranked by expected value with course fit adjustments';
+    // Tier labels based on rank among ALL available players across the full sorted list
+    let availRank = 0;
+    const availRankMap = new Map<number, number>();
+    sortedRecs.forEach(r => { if (!r.is_used) availRankMap.set(r.dg_id, availRank++); });
 
-      if (index < 3) {
-        tier = 'TOP PICK';
-        reasoning = 'Highest value with elite course fit';
-      } else if (index < 8) {
-        tier = 'STRONG VALUE';
-        reasoning = 'Excellent value with strong upside';
-      } else if (index < 15) {
-        tier = 'PLAYABLE';
-        reasoning = 'Solid option worth considering';
+    function getRecTier(rank: number): { tier: string; reasoning: string } {
+      if (rank < 3)  return { tier: 'TOP PICK',     reasoning: 'Highest value with elite course fit' };
+      if (rank < 8)  return { tier: 'STRONG VALUE', reasoning: 'Excellent value with strong upside' };
+      if (rank < 15) return { tier: 'PLAYABLE',     reasoning: 'Solid option worth considering' };
+      return             { tier: 'VALUE PLAY',   reasoning: 'Ranked by expected value with course fit adjustments' };
+    }
+
+    const recommendations: PlayerRecommendation[] = [...top20, ...fillIns].map(player => {
+      if (player.is_used) {
+        return {
+          ...player,
+          recommendation_score: player.ranking_score,
+          recommendation_tier: 'USED',
+          reasoning: `Already used — Week ${player.used_week}`,
+        };
       }
-
-      recommendations.push({
+      const rank = availRankMap.get(player.dg_id) ?? 99;
+      const { tier, reasoning } = getRecTier(rank);
+      return {
         ...player,
-        ev: player.ev,
         recommendation_score: player.ranking_score,
         recommendation_tier: tier,
         reasoning,
-      });
-    });
-
-    // Append used players at the end so they appear greyed out in the UI
-    usedRecs.forEach((player) => {
-      recommendations.push({
-        ...player,
-        ev: player.ev,
-        recommendation_score: 0,
-        recommendation_tier: 'USED',
-        reasoning: `Already used — Week ${player.used_week}`,
-      });
+      };
     });
 
     const finalRecs = recommendations;

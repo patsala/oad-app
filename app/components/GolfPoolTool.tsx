@@ -69,6 +69,8 @@ interface PlayerRecommendation {
   course_fit?: number;
   is_used: boolean;
   used_week?: number;
+  is_fill_in?: boolean;
+  field_rank?: number;
   recommendation_score: number;
   recommendation_tier: string;
   reasoning: string;
@@ -1401,22 +1403,38 @@ const GolfPoolTool = () => {
               <div className="text-green-200/60">No recommendations available. Check back closer to tournament start.</div>
             </div>
           ) : (
-            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="max-w-7xl mx-auto">
+              {/* Fill-in divider — rendered once, spanning both columns */}
+              {recommendations.some(r => r.is_fill_in) && (
+                <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 mb-4" id="fill-in-anchor" />
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {recommendations.map((rec, idx) => {
                 const Icon = getRecommendationIcon(rec.recommendation_tier);
+                const isFirstFillIn = rec.is_fill_in && !recommendations[idx - 1]?.is_fill_in;
+                const displayRank = rec.field_rank ?? idx + 1;
 
                 return (
+                  <React.Fragment key={rec.dg_id}>
+                    {isFirstFillIn && (
+                      <div className="col-span-1 md:col-span-2 flex items-center gap-3 py-1">
+                        <div className="h-px flex-1 bg-green-800/30" />
+                        <span className="text-[11px] text-green-300/40 uppercase tracking-wider whitespace-nowrap">
+                          Next available — filling in for used picks
+                        </span>
+                        <div className="h-px flex-1 bg-green-800/30" />
+                      </div>
+                    )}
                   <div
-                    key={rec.dg_id}
                     className={`glass rounded-xl p-4 transition-all hover:scale-[1.01] bg-gradient-to-br ${getTierColor(rec.tier)} border ${
-                      rec.is_used ? 'opacity-50' : ''
+                      rec.is_used ? 'opacity-40 grayscale-[30%]' : ''
                     }`}
                   >
                     {/* Header: Rank, Name, Tier, EV */}
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="shrink-0 text-center">
-                          <div className="text-lg font-bold text-green-200/60">#{idx + 1}</div>
+                          <div className="text-lg font-bold text-green-200/60">#{displayRank}</div>
                           <div className="text-[10px] text-green-300/40 leading-none">OWGR {rec.owgr_rank}</div>
                         </div>
                         <h4 className="text-lg font-bold truncate">{rec.name}</h4>
@@ -1669,8 +1687,10 @@ const GolfPoolTool = () => {
                       </div>
                     )}
                   </div>
+                  </React.Fragment>
                 );
               })}
+              </div>
             </div>
           )}
         </>
