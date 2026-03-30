@@ -1283,10 +1283,11 @@ const GolfPoolTool = () => {
             // Read conditions directly from forecast data for more sensitive metric switching
             const maxPrecip = Math.max(...(weatherData?.forecast ?? []).map(d => d.precipitation), 0);
             const maxWind   = Math.max(...(weatherData?.forecast ?? []).map(d => d.wind_speed), 0);
-            // >35% rain → soft conditions favour distance; >15 mph wind → accuracy matters; else overall
+            // Mirror API analyzeImpact priority: wind checked before rain
+            // >15 mph wind → accuracy matters; >60% rain → soft conditions favour distance; else overall
             const metric: 'sg_ott' | 'sg_app' | 'sg_total' =
-              maxPrecip > 35 ? 'sg_ott' :
               maxWind   > 15 ? 'sg_app' :
+              maxPrecip > 60 ? 'sg_ott' :
               'sg_total';
             const metricLabel = metric === 'sg_ott' ? 'SG:OTT' : metric === 'sg_app' ? 'SG:APP' : 'SG:Total';
             const suitedPlayers = recommendations.length > 0
