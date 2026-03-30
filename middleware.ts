@@ -6,11 +6,8 @@ import { SessionData, sessionOptions } from '@/app/lib/auth';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow login page and auth API endpoints through
-  if (
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/api/auth/')
-  ) {
+  // Always allow auth API endpoints through
+  if (pathname.startsWith('/api/auth/')) {
     return NextResponse.next();
   }
 
@@ -25,13 +22,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check session
   const res = NextResponse.next();
   const session = await getIronSession<SessionData>(request, res, sessionOptions);
 
+  // Root (/) is the login page — redirect to dashboard if already authenticated
+  if (pathname === '/') {
+    if (session.isLoggedIn) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // All other routes require authentication
   if (!session.isLoggedIn) {
-    const loginUrl = new URL('/login', request.url);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   return res;
