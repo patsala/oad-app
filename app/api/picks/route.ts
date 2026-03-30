@@ -117,10 +117,17 @@ export async function POST(request: Request) {
       [tournament_id, tournament[0].week_number, player_name]
     );
 
-    // Clear any reservation for this player
+    // Clear the picked player's reservation (any week they were planned for)
     await query(
       'DELETE FROM reservations WHERE player_name = $1',
       [player_name]
+    );
+
+    // Also clear any other player's reservation for this week —
+    // the slot is now taken, so whoever was planned here should be released.
+    await query(
+      'DELETE FROM reservations WHERE week_number = $1',
+      [tournament[0].week_number]
     );
     
     return NextResponse.json({ 
