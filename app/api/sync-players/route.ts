@@ -32,11 +32,9 @@ export async function POST() {
     }
     
     const data = await response.json();
-    
-    // Clear existing players
-    await query('DELETE FROM players');
-    
-    // Insert all players with full DataGolf data
+
+    // Upsert players — ON CONFLICT preserves used_in_tournament_id / used_in_week
+    // so picks are not wiped when rankings sync runs mid-season.
     let count = 0;
     for (const player of data.rankings) {
       // Skip syncing Amateur golfers
