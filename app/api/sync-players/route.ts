@@ -74,10 +74,23 @@ export async function POST() {
       count++;
     }
     
-    return NextResponse.json({ 
-      success: true, 
+    // Restore used_in_tournament_id / used_in_week from picks for any player
+    // whose flags were cleared (e.g. by a previous DELETE-based sync).
+    // This is idempotent — players already marked used are unaffected.
+    await query(`
+      UPDATE players p
+      SET used_in_tournament_id = pk.tournament_id,
+          used_in_week          = t.week_number
+      FROM picks pk
+      JOIN tournaments t ON pk.tournament_id = t.id
+      WHERE p.name = pk.player_name
+        AND p.used_in_tournament_id IS NULL
+    `);
+
+    return NextResponse.json({
+      success: true,
       count,
-      message: `Synced ${count} PGA/EURO/LIV players with full DataGolf data`
+      message: `Synced ${count} PGA/EURO/LIV players with full DataGolf data`,
     });
   } catch (error) {
     console.error('Sync error:', error);

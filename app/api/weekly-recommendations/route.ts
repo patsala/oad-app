@@ -349,16 +349,17 @@ export async function GET() {
     const sortedRecs = preliminaryRecs
       .sort((a, b) => b.ranking_score - a.ranking_score)
       .slice(0, 50);
-    
-    const availableRecs = sortedRecs.filter(r => !r.is_used).slice(0, 30);
-    
-    // Skip AI recommendation tiers - just use simple EV-based tiers
+
+    const availableRecs = sortedRecs.filter(r => !r.is_used).slice(0, 20);
+    const usedRecs      = sortedRecs.filter(r =>  r.is_used);
+
+    // Tier-label available players only
     const recommendations: PlayerRecommendation[] = [];
-    
+
     availableRecs.forEach((player, index) => {
       let tier = 'VALUE PLAY';
       let reasoning = 'Ranked by expected value with course fit adjustments';
-      
+
       if (index < 3) {
         tier = 'TOP PICK';
         reasoning = 'Highest value with elite course fit';
@@ -369,18 +370,28 @@ export async function GET() {
         tier = 'PLAYABLE';
         reasoning = 'Solid option worth considering';
       }
-      
+
       recommendations.push({
         ...player,
         ev: player.ev,
         recommendation_score: player.ranking_score,
         recommendation_tier: tier,
-        reasoning: reasoning
+        reasoning,
       });
     });
-    
-    // Take top 20 for display
-    const finalRecs = recommendations.slice(0, 20);
+
+    // Append used players at the end so they appear greyed out in the UI
+    usedRecs.forEach((player) => {
+      recommendations.push({
+        ...player,
+        ev: player.ev,
+        recommendation_score: 0,
+        recommendation_tier: 'USED',
+        reasoning: `Already used — Week ${player.used_week}`,
+      });
+    });
+
+    const finalRecs = recommendations;
 
     // Course specialists: players with best avg finish at this course (min 1 start)
     let courseSpecialists: any[] = [];
