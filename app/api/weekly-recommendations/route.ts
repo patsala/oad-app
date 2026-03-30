@@ -118,6 +118,18 @@ export async function GET() {
       [today]
     );
 
+    // Ensure used_in_tournament_id is accurate — repairs any rows wiped by a previous
+    // DELETE-based sync. Idempotent: only touches players whose flag is currently NULL.
+    await query(`
+      UPDATE players p
+      SET used_in_tournament_id = pk.tournament_id,
+          used_in_week          = t.week_number
+      FROM picks pk
+      JOIN tournaments t ON pk.tournament_id = t.id
+      WHERE p.name = pk.player_name
+        AND p.used_in_tournament_id IS NULL
+    `);
+
     const currentTournament = await query(
       `SELECT * FROM tournaments
        WHERE is_completed = false
