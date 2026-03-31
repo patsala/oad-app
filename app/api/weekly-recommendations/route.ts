@@ -354,8 +354,11 @@ export async function GET() {
       // At minimum we need some probability data
       if (!playerProb && !playerProbCourseFit) continue;
 
-      // Prefer bet365 → William Hill → FanDuel → DraftKings → BetMGM → Caesars → Bovada → DG models
-      const winOdds = parseOdds(playerOdds?.bet365)
+      // Real sportsbook odds only — used for market inefficiency detection.
+      // DataGolf's own implied odds are intentionally excluded here: comparing
+      // DataGolf's model probability against DataGolf-derived odds is circular
+      // and would produce meaningless "edge" readings.
+      const bookOdds = parseOdds(playerOdds?.bet365)
         || parseOdds(playerOdds?.williamhill)
         || parseOdds(playerOdds?.fanduel)
         || parseOdds(playerOdds?.draftkings)
@@ -363,6 +366,10 @@ export async function GET() {
         || parseOdds(playerOdds?.caesars)
         || parseOdds(playerOdds?.bovada)
         || parseOdds(playerOdds?.betonline)
+        || null;
+
+      // Display odds — falls back to DataGolf implied when no book has posted yet
+      const winOdds = bookOdds
         || parseOdds(playerOdds?.datagolf?.baseline)
         || parseOdds(playerOdds?.datagolf?.baseline_history_fit)
         || null;
@@ -378,7 +385,7 @@ export async function GET() {
         tournament.multiplier,
         formData?.form_score ?? null, // recent form (not in DataGolf model)
         enrichData,                   // SG stats for weather + market edge
-        winOdds ?? null,              // betting odds for market inefficiency detection
+        bookOdds ?? null,             // real sportsbook odds only — no DG circular comparison
         weatherData                   // tournament weather for conditions adjustment
       );
 
